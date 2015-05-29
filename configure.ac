@@ -2288,6 +2288,77 @@ AC_SUBST(JAVA_LIBS)
 AM_CONDITIONAL(BUILD_WITH_JAVA, test "x$with_java" = "xyes")
 # }}}
 
+--with-liblsf {{{
+AC_ARG_VAR([LIBLSF_CPPFLAGS], [C preprocessor flags required to build with liblsf])
+AC_ARG_VAR([LIBLSF_LDFLAGS],  [Linker flags required to build with liblsf])
+AC_ARG_VAR([LIBLSF_LIBS],     [Other libraries required to link against liblsf])
+LIBLSF_CPPFLAGS="$LIBLSF_CPPFLAGS"
+LIBLSF_LDFLAGS="$LIBLSF_LDFLAGS"
+LIBLSF_LIBS="$LIBLSF_LIBS"
+AC_ARG_WITH(liblsf, [AS_HELP_STRING([--with-liblsf@<:@=PREFIX@:>@], [Path to liblsf.])],
+[
+ if test -d "$withval"
+ then
+         LIBLSF_CPPFLAGS="$LIBLSF_CPPFLAGS -I$withval/include/lsf"
+         LIBLSF_LDFLAGS="$LIBLSF_LDFLAGS -L$withval/linux2.6-glibc2.3-x86_64/lib"
+         with_liblsf="yes"
+ else
+         with_liblsf="$withval"
+ fi
+],
+[
+ with_liblsf="yes"
+])
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+SAVE_LDFLAGS="$LDFLAGS"
+CPPFLAGS="$CPPFLAGS $LIBLSF_CPPFLAGS"
+LDFLAGS="$LDFLAGS $LIBLSF_LDFLAGS"
+                 
+if test "x$with_liblsf" = "xyes"
+then 
+        if test "x$LIBLSF_CPPFLAGS" != "x"
+        then
+                AC_MSG_NOTICE([lsf CPPFLAGS: $LIBLSF_CPPFLAGS])
+        fi
+        AC_CHECK_HEADERS(lsf.h,
+                [with_liblsf="yes"],
+                [with_liblsf="no (lsf.h not found)"])
+fi
+
+if test "x$with_liblsf" = "xyes"
+then
+        if test "x$LIBLSF_LDFLAGS" != "x"
+        then
+                AC_MSG_NOTICE([lsf LDFLAGS: $LIBLSF_LDFLAGS])
+        fi
+
+        if test "x$LIBLSF_LIBS" = "x"
+        then
+                LIBLSF_LIBS="-lbat -lnsl -lm"
+        fi
+        AC_MSG_NOTICE([lsf LIBS: $LIBLSF_LIBS])
+
+        AC_CHECK_LIB(lsf, lsb_init,
+                [with_liblsf="yes"],
+                [with_liblsf="no (symbol lsb_init not found)"],
+                [$LIBLSF_LIBS])
+        LIBLSF_LIBS="-llsf $LIBLSF_LIBS"
+fi
+CPPFLAGS="$SAVE_CPPFLAGS"
+LDFLAGS="$SAVE_LDFLAGS"
+
+if test "x$with_liblsf" = "xyes"
+then
+        AC_DEFINE(HAVE_LIBLSF, 1, [Define to 1 if you have the lsf library (-llsf).])
+fi
+
+AC_SUBST(LIBLSF_CPPFLAGS)
+AC_SUBST(LIBLSF_LDFLAGS)
+AC_SUBST(LIBLSF_LIBS)
+AM_CONDITIONAL(BUILD_WITH_LIBLSF, test "x$with_liblsf" = "xyes")
+# }}}
+
 # --with-libldap {{{
 AC_ARG_WITH(libldap, [AS_HELP_STRING([--with-libldap@<:@=PREFIX@:>@], [Path to libldap.])],
 [
@@ -5565,6 +5636,7 @@ AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
+AC_PLUGIN([jobstatus],   [$with_liblsf],       [Lsf job status])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([log_logstash], [$plugin_log_logstash], [Logstash json_event compatible logging])
@@ -5858,6 +5930,7 @@ Configuration:
     libkstat  . . . . . . $with_kstat
     libkvm  . . . . . . . $with_libkvm
     libldap . . . . . . . $with_libldap
+    liblsf  . . . . . . . $with_liblsf
     liblvm2app  . . . . . $with_liblvm2app
     libmemcached  . . . . $with_libmemcached
     libmnl  . . . . . . . $with_libmnl
@@ -5944,6 +6017,7 @@ Configuration:
     ipvs  . . . . . . . . $enable_ipvs
     irq . . . . . . . . . $enable_irq
     java  . . . . . . . . $enable_java
+    jobstatus . . . . . . $enable_jobstatus
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
     log_logstash  . . . . $enable_log_logstash

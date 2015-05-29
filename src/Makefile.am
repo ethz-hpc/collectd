@@ -468,6 +468,14 @@ java_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(JAVA_LDFLAGS)
 java_la_LIBADD = $(JAVA_LIBS)
 endif
 
+if BUILD_PLUGIN_JOBSTATUS
+pkglib_LTLIBRARIES += jobstatus.la
+jobstatus_la_SOURCES = jobstatus.c 
+jobstatus_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBLSF_CPPFLAGS)
+jobstatus_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBLSF_LDFLAGS)
+jobstatus_la_LIBADD = $(LIBLSF_LIBS)
+endif
+
 if BUILD_PLUGIN_LOAD
 pkglib_LTLIBRARIES += load.la
 load_la_SOURCES = load.c
