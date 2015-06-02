@@ -1651,7 +1651,7 @@ static int jobmetrics_read (void)
 	procstat_t *ps_ptr;
 
 	running = sleeping = zombies = stopped = paging = blocked = 0;
-	ps_list_reset ();
+	jobmetrics_list_reset ();
 
 	if ((proc = opendir ("/proc")) == NULL)
 	{
@@ -1713,7 +1713,7 @@ static int jobmetrics_read (void)
 		}
 
 		jobmetrics_list_add (ps.name,
-				ps_get_cmdline (pid, ps.name, cmdline, sizeof (cmdline)),
+				jobmetrics_get_cmdline (pid, ps.name, cmdline, sizeof (cmdline)),
 				&pse);
 	}
 
