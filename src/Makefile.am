@@ -471,6 +471,7 @@ endif
 if BUILD_PLUGIN_JOBMETRICS
 pkglib_LTLIBRARIES += jobmetrics.la
 processes_la_SOURCES = jobmetrics.c
+jobmetrics_la_CPPFLAGS = $(AM_CPPFLAGS) 
 processes_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 processes_la_LIBADD =
 if BUILD_WITH_LIBKVM_GETPROCS
