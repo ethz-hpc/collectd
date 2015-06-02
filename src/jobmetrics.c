@@ -287,7 +287,8 @@ static void jobmetrics_list_register (const char *name, const char *jobId, const
 
 	for (ptr = list_head_g; ptr != NULL; ptr = ptr->next)
 	{
-		if (strcmp (ptr->jobId, jobId) == 0)
+		if (strcmp (ptr->jobId, jobId) == 0 ||
+            strcmp (ptr->name, name) == 0 )
 		{
 			WARNING ("jobmetrics plugin: You have configured more "
 					"than one `Process' or "
@@ -1353,12 +1354,103 @@ static int mach_get_task_name (task_t t, int *pid, char *name, size_t name_max_l
 #endif /* HAVE_THREAD_INFO */
 /* ------- end of additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 
-static void jobmetrics_set_jobs(void)
+static char* jobmetrics_read_jobid(char *dir_name)
+{
+    char jobId[PROCSTAT_NAME_LEN];
+    int ch, i;
+
+    for ( ch = 0; dir_name[ch] != '\0'; ch++)
+    {
+        if ( dir_name[ch] == '.' ){
+            ch++;
+            i = 0;
+            while (dir_name[ch] != '.' && dir_name[ch] != '[')
+            {
+               jobId[i] = dir_name[ch];
+               i++;
+               ch++;
+            }
+            jobId[i] = '\0';
+            break;
+        }
+    }
+
+    return jobId;
+} 
+
+static char* jobmetrics_read_name(char *fl_name)
+{
+    char name[PROCSTAT_NAME_LEN];
+    int ch, i;
+
+    for (ch = 0; fl_name[ch] != '\0'; ch++)
+    {
+       i = 0;
+       if ( fl_name[ch] == ' ')
+       {
+          ch = ch + 2;
+          while (fl_name[ch] != ' '){
+             name[i] = fl_name[ch];
+             i++;
+             ch++;
+          }
+          name[--i] = '\0';
+          break;
+       }
+    }
+
+    return name;
+}
+
+static int jobmetrics_set_jobs(void)
 {
     /*
     * Loop over /cgroup/cpuset/lsf/euler dir and get all current tasks
     * TODO: should be inotify latter
     */
+
+    struct dirent *dp;
+    DIR *dfd;
+    FILE *fp, *fh;
+    char filename[100], line[80];
+    char jobId[PROCSTAT_NAME_LEN], name[PROCSTAT_NAME_LEN];
+    int pid;
+
+    if ((dfd = opendir("/cgroup/cpuset/lsf/euler")) == NULL){
+        ERROR("jobmetrics plugin: could not open LSF fs");
+        return -1;
+    }
+    while ((dp = readdir(dfd)) != NULL)
+    {
+        if (dp->d_type & DT_DIR){
+            if (strcmp (dp->d_name, "..") != 0 && strcmp (dp->d_name, ".") != 0) {
+                sstrncpy(jobId, jobmetrics_read_jobid(dp->d_name),sizeof (jobId));
+
+                sprintf( filename , "%s/%s/%s", "/cgroup/cpuset/lsf/euler", dp->d_name,"tasks");
+                fp = fopen(filename,"r");
+                if (fp == NULL ){
+                     ERROR("jobmetrics plugin: could not open LSF fs");
+                     return -1;
+                }
+                while(fgets(line, 80, fp) != NULL)
+                {
+                   sscanf (line, "%d", &pid);
+                   sprintf (filename, "/proc/%i/stat", pid);
+                   if ((fh = fopen (filename, "r")) == NULL)
+                        return -1;
+                   if (fgets(line, sizeof(line), fh) != NULL){
+                        sstrncpy(name, get_process_name(line), sizeof(name));                        
+                   }       
+                   fclose(fh);
+                }
+                fclose(fp);
+            }
+        }
+    }
+    closedir (dfd);
+
+    if ((strcmp(name,"res") != 0) && (!isdigit(name[0])))
+        jobmetrics_list_register (name, jobId, NULL);
 }
 
 /* do actual readings from kernel */
@@ -1391,6 +1483,9 @@ static int jobmetrics_read (void)
 
 	procstat_t *ps;
 	procstat_entry_t pse;
+
+    if (jobmetrics_set_jobs () < 0)
+        return -1;
 
 	jobmetrics_list_reset ();
 
