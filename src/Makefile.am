@@ -475,7 +475,7 @@ jobmetrics_la_CPPFLAGS = $(AM_CPPFLAGS)
 jobmetrics_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 jobmetrics_la_LIBADD =
 if BUILD_WITH_LIBKVM_GETPROCS
-processes_la_LIBADD += -lkvm
+jobmetrics_la_LIBADD += -lkvm
 endif
 endif
 
