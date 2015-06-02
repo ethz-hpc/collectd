@@ -468,6 +468,16 @@ java_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(JAVA_LDFLAGS)
 java_la_LIBADD = $(JAVA_LIBS)
 endif
 
+if BUILD_PLUGIN_JOBMETRICS
+pkglib_LTLIBRARIES += jobmetrics.la
+processes_la_SOURCES = jobmetrics.c
+processes_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+processes_la_LIBADD =
+if BUILD_WITH_LIBKVM_GETPROCS
+processes_la_LIBADD += -lkvm
+endif
+endif
+
 if BUILD_PLUGIN_JOBSTATUS
 pkglib_LTLIBRARIES += jobstatus.la
 jobstatus_la_SOURCES = jobstatus.c 
