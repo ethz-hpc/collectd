@@ -110,7 +110,7 @@ static void jobstatus_list_add (jobstatus_t *js)
 	else{
 
 		jobstatus_t *ps = list_head_g;
-        	jobstatus_t *last_ps;
+       	jobstatus_t *last_ps;
 		while(ps != NULL && strcmp(ps->name,js->name) != 0)
 		{
 			last_ps = ps;
@@ -132,8 +132,13 @@ static void jobstatus_list_add (jobstatus_t *js)
 
 static void jobstatus_list_reset (void)
 {
-	if (list_head_g != NULL)
-		list_head_g = NULL;
+    jobstatus_t *ps = list_head_g;
+    
+    while( list_head_g!= NULL) {
+            ps = list_head_g;
+            list_head_g = list_head_g->next;
+            free(ps);
+        }
 }
 
 static jobstatus_t* read_single_job (struct jobInfoEnt *job, jobstatus_t *js)
