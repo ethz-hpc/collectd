@@ -1354,11 +1354,53 @@ static int mach_get_task_name (task_t t, int *pid, char *name, size_t name_max_l
 #endif /* HAVE_THREAD_INFO */
 /* ------- end of additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 
-static int mach_get_jobId (int pid, char *jobId, size_t name_max_len)
+static void jobmetrics_read_name(char *fl_name, char *name)
+{
+    int ch, i;
+
+    for (ch = 0; fl_name[ch] != '\0'; ch++)
+    {
+       i = 0;
+       if ( fl_name[ch] == ' ')
+       {
+          ch = ch + 2;
+          while (fl_name[ch] != ' '){
+             name[i] = fl_name[ch];
+             i++;
+             ch++;
+          }
+          name[--i] = '\0';
+          break;
+       }
+    }
+}
+
+static void jobmetrics_read_jobid(char *dir_name, char *jobId)
+{
+    int ch, i;
+
+    for ( ch = 0; dir_name[ch] != '\0'; ch++)
+    {
+        if ( dir_name[ch] == '.' ){
+            ch++;
+            i = 0;
+            while (dir_name[ch] != '.' && dir_name[ch] != '[')
+            {
+               jobId[i] = dir_name[ch];
+               i++;
+               ch++;
+            }
+            jobId[i] = '\0';
+            break;
+        }
+    }
+}
+
+static int match_get_jobId (int pid, char *jobId, size_t name_max_len)
 {
     struct dirent *dp;
     DIR *dfd;
-    FILE *fp, *fh;
+    FILE *fp;
     char filename[100], line[80];
     int job_pid;
 
@@ -1379,63 +1421,17 @@ static int mach_get_jobId (int pid, char *jobId, size_t name_max_len)
                 while(fgets(line, 80, fp) != NULL)
                 {
                    sscanf (line, "%d", &job_pid);
-                   if (job_pid == pid)
-                        sstrncpy(jobId, jobmetrics_read_jobid(dp->d_name),sizeof(char)*PROCSTAT_NAME_LEN);
+                   if (job_pid == pid){
+                        jobmetrics_read_jobid(dp->d_name, jobId);
                         return (0);
+                    }
                 }                  
-            }    
+            }
+        }    
     }
 
     DEBUG ("pid = %i; jobId = %s;", *pid, jobId);
     return (-1);
-}
-
-static char* jobmetrics_read_jobid(char *dir_name)
-{
-    char jobId[PROCSTAT_NAME_LEN];
-    int ch, i;
-
-    for ( ch = 0; dir_name[ch] != '\0'; ch++)
-    {
-        if ( dir_name[ch] == '.' ){
-            ch++;
-            i = 0;
-            while (dir_name[ch] != '.' && dir_name[ch] != '[')
-            {
-               jobId[i] = dir_name[ch];
-               i++;
-               ch++;
-            }
-            jobId[i] = '\0';
-            break;
-        }
-    }
-
-    return jobId;
-} 
-
-static char* jobmetrics_read_name(char *fl_name)
-{
-    char name[PROCSTAT_NAME_LEN];
-    int ch, i;
-
-    for (ch = 0; fl_name[ch] != '\0'; ch++)
-    {
-       i = 0;
-       if ( fl_name[ch] == ' ')
-       {
-          ch = ch + 2;
-          while (fl_name[ch] != ' '){
-             name[i] = fl_name[ch];
-             i++;
-             ch++;
-          }
-          name[--i] = '\0';
-          break;
-       }
-    }
-
-    return name;
 }
 
 static int jobmetrics_set_jobs(void)
@@ -1460,7 +1456,7 @@ static int jobmetrics_set_jobs(void)
     {
         if (dp->d_type & DT_DIR){
             if (strcmp (dp->d_name, "..") != 0 && strcmp (dp->d_name, ".") != 0) {
-                sstrncpy(jobId, jobmetrics_read_jobid(dp->d_name),sizeof (jobId));
+                jobmetrics_read_jobid(dp->d_name, jobId);
 
                 sprintf( filename , "%s/%s/%s", "/cgroup/cpuset/lsf/euler", dp->d_name,"tasks");
                 fp = fopen(filename,"r");
@@ -1475,7 +1471,7 @@ static int jobmetrics_set_jobs(void)
                    if ((fh = fopen (filename, "r")) == NULL)
                         return -1;
                    if (fgets(line, sizeof(line), fh) != NULL){
-                        sstrncpy(name, get_process_name(line), sizeof(name));                        
+                        jobmetrics_read_name(line, name);                        
                    }       
                    fclose(fh);
                 }
@@ -1487,6 +1483,8 @@ static int jobmetrics_set_jobs(void)
 
     if ((strcmp(name,"res") != 0) && (!isdigit(name[0])))
         jobmetrics_list_register (name, jobId, NULL);
+
+    return 0;
 }
 
 /* do actual readings from kernel */
@@ -1777,9 +1775,12 @@ static int jobmetrics_read (void)
 	char cmdline[CMDLINE_BUFFER_SIZE];
 
 	int        status;
+    int        status_job;
 	procstat_t ps;
 	procstat_entry_t pse;
 	char       state;
+
+    char       jobId[PROCSTAT_NAME_LEN];
 
 	procstat_t *ps_ptr;
 
@@ -1806,7 +1807,7 @@ static int jobmetrics_read (void)
 			continue;
 
 		status = jobmetrics_read_process (pid, &ps, &state);
-        status_job = match_get_jobId (pid, jobId, PROCSTAT_NAME_LEN);
+        status_job = match_get_jobId(pid, jobId, PROCSTAT_NAME_LEN);
         
 		if (status != 0 || status_job != 0)
 		{
