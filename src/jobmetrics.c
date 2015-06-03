@@ -287,7 +287,8 @@ static void jobmetrics_list_register (const char *name, const char *jobId, const
 
 	for (ptr = list_head_g; ptr != NULL; ptr = ptr->next)
 	{
-		if (strcmp (ptr->jobId, jobId) == 0)
+		if (strcmp (ptr->jobId, jobId) == 0 &&
+            strcmp (ptr->name, name) == 0 )
 		{
 			WARNING ("jobmetrics plugin: You have configured more "
 					"than one `Process' or "
@@ -310,7 +311,7 @@ static void jobmetrics_list_register (const char *name, const char *jobId, const
 } /* void jobmetrics_list_register */
 
 /* try to match jobId against entry, returns 1 if success */
-static int jobmetrics_list_match (const char *jobId, const char *cmdline, procstat_t *ps)
+static int jobmetrics_list_match (const char *jobId, const char *name, const char *cmdline, procstat_t *ps)
 {
 #if HAVE_REGEX_H
 	if (ps->re != NULL)
@@ -333,14 +334,14 @@ static int jobmetrics_list_match (const char *jobId, const char *cmdline, procst
 	}
 	else
 #endif
-	if (strcmp (ps->jobId, jobId) == 0)
+	if (strcmp (ps->jobId, jobId) == 0 && strcmp (ps->name, name) == 0)
 		return (1);
 
 	return (0);
 } /* int jobmetrics_list_match */
 
-/* add process entry to 'instances' of process 'name' (or refresh it) */
-static void jobmetrics_list_add (const char *jobId, const char *cmdline, procstat_entry_t *entry)
+/* add process entry to 'instances' of process 'name' (or refresh it) and JOBID jobId*/
+static void jobmetrics_list_add (const char *jobId, const char *name, const char *cmdline, procstat_entry_t *entry)
 {
 	procstat_t *ps;
 	procstat_entry_t *pse;
@@ -350,7 +351,7 @@ static void jobmetrics_list_add (const char *jobId, const char *cmdline, procsta
 
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 	{
-		if ((jobmetrics_list_match (jobId, cmdline, ps)) == 0)
+		if ((jobmetrics_list_match (jobId, name, cmdline, ps)) == 0)
 			continue;
 
 		for (pse = ps->instances; pse != NULL; pse = pse->next)
@@ -919,7 +920,7 @@ int jobmetrics_read_process (int pid, procstat_t *ps, char *state)
 	fields_len = strsplit (buffer_ptr, fields, STATIC_ARRAY_SIZE (fields));
 	if (fields_len < 22)
 	{
-		DEBUG ("jobmetrics plugin: ps_read_process (pid = %i):"
+		DEBUG ("jobmetrics plugin: jobmetrics_read_process (pid = %i):"
 				" `%s' has only %i fields..",
 				(int) pid, filename, fields_len);
 		return (-1);
@@ -1353,12 +1354,137 @@ static int mach_get_task_name (task_t t, int *pid, char *name, size_t name_max_l
 #endif /* HAVE_THREAD_INFO */
 /* ------- end of additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
 
-static void jobmetrics_set_jobs(void)
+static void jobmetrics_read_name(char *fl_name, char *name)
+{
+    int ch, i;
+
+    for (ch = 0; fl_name[ch] != '\0'; ch++)
+    {
+       i = 0;
+       if ( fl_name[ch] == ' ')
+       {
+          ch = ch + 2;
+          while (fl_name[ch] != ' '){
+             name[i] = fl_name[ch];
+             i++;
+             ch++;
+          }
+          name[--i] = '\0';
+          break;
+       }
+    }
+}
+
+static void jobmetrics_read_jobid(char *dir_name, char *jobId)
+{
+    int ch, i;
+
+    for ( ch = 0; dir_name[ch] != '\0'; ch++)
+    {
+        if ( dir_name[ch] == '.' ){
+            ch++;
+            i = 0;
+            while (dir_name[ch] != '.' && dir_name[ch] != '[')
+            {
+               jobId[i] = dir_name[ch];
+               i++;
+               ch++;
+            }
+            jobId[i] = '\0';
+            break;
+        }
+    }
+}
+
+static int match_get_jobId (int pid, char *jobId, size_t name_max_len)
+{
+    struct dirent *dp;
+    DIR *dfd;
+    FILE *fp;
+    char filename[100], line[80];
+    int job_pid;
+
+    if ((dfd = opendir("/cgroup/cpuset/lsf/euler")) == NULL){
+        ERROR("jobmetrics plugin: could not open LSF fs");
+        return -1;
+    }
+    while ((dp = readdir(dfd)) != NULL)
+    {
+        if (dp->d_type & DT_DIR){
+            if (strcmp (dp->d_name, "..") != 0 && strcmp (dp->d_name, ".") != 0) {
+               sprintf( filename , "%s/%s/%s", "/cgroup/cpuset/lsf/euler", dp->d_name, "tasks");
+               fp = fopen(filename,"r");
+                if (fp == NULL ){
+                     ERROR("jobmetrics plugin: could not open LSF fs");
+                     return -1;
+                }
+                while(fgets(line, 80, fp) != NULL)
+                {
+                   sscanf (line, "%d", &job_pid);
+                   if (job_pid == pid){
+                        jobmetrics_read_jobid(dp->d_name, jobId);
+                        return (0);
+                    }
+                }                  
+            }
+        }    
+    }
+
+    DEBUG ("pid = %i; jobId = %s;", *pid, jobId);
+    return (-1);
+}
+
+static int jobmetrics_set_jobs(void)
 {
     /*
     * Loop over /cgroup/cpuset/lsf/euler dir and get all current tasks
     * TODO: should be inotify latter
     */
+
+    struct dirent *dp;
+    DIR *dfd;
+    FILE *fp, *fh;
+    char filename[100], line[80];
+    char jobId[PROCSTAT_NAME_LEN], name[PROCSTAT_NAME_LEN];
+    int pid;
+
+    if ((dfd = opendir("/cgroup/cpuset/lsf/euler")) == NULL){
+        ERROR("jobmetrics plugin: could not open LSF fs");
+        return -1;
+    }
+    while ((dp = readdir(dfd)) != NULL)
+    {
+        if (dp->d_type & DT_DIR){
+            if (strcmp (dp->d_name, "..") != 0 && strcmp (dp->d_name, ".") != 0) {
+                jobmetrics_read_jobid(dp->d_name, jobId);
+
+                sprintf( filename , "%s/%s/%s", "/cgroup/cpuset/lsf/euler", dp->d_name,"tasks");
+                fp = fopen(filename,"r");
+                if (fp == NULL ){
+                     ERROR("jobmetrics plugin: could not open LSF fs");
+                     return -1;
+                }
+                while(fgets(line, 80, fp) != NULL)
+                {
+                   sscanf (line, "%d", &pid);
+                   sprintf (filename, "/proc/%i/stat", pid);
+                   if ((fh = fopen (filename, "r")) == NULL)
+                        return -1;
+                   if (fgets(line, sizeof(line), fh) != NULL){
+                        jobmetrics_read_name(line, name);                        
+                   }       
+                   fclose(fh);
+                }
+                fclose(fp);
+            }
+        }
+    }
+    closedir (dfd);
+
+    if ((strcmp(name,"res") != 0) && (!isdigit(name[0])))
+        jobmetrics_list_register (name, jobId, NULL);
+
+    return 0;
 }
 
 /* do actual readings from kernel */
@@ -1376,6 +1502,7 @@ static int jobmetrics_read (void)
 
 	int                      task_pid;
 	char                     task_name[MAXCOMLEN + 1];
+    char                     jobId[PROCSTAT_NAME_LEN];
 
 	int                      thread;
 	thread_act_array_t       thread_list;
@@ -1391,6 +1518,9 @@ static int jobmetrics_read (void)
 
 	procstat_t *ps;
 	procstat_entry_t pse;
+
+    if (jobmetrics_set_jobs () < 0)
+        return -1;
 
 	jobmetrics_list_reset ();
 
@@ -1428,13 +1558,14 @@ static int jobmetrics_read (void)
 			ps = NULL;
 			if (mach_get_task_name (task_list[task],
 						&task_pid,
-						task_name, PROCSTAT_NAME_LEN) == 0)
-			{
-				/* search for at least one match */
-				for (ps = list_head_g; ps != NULL; ps = ps->next)
-					/* FIXME: cmdline should be here instead of NULL */
-					if (jobmetrics_list_match (task_name, NULL, ps) == 1)
-						break;
+						task_name, PROCSTAT_NAME_LEN) == 0){
+                if (match_get_jobId (task_pid, jobId, PROCSTAT_NAME_LEN) == 0){
+				    /* search for at least one match */
+			    	for (ps = list_head_g; ps != NULL; ps = ps->next)
+					    /* FIXME: cmdline should be here instead of NULL */
+					    if (jobmetrics_list_match (jobId, task_name, NULL, ps) == 1)
+						    break;
+                }
 			}
 
 			/* Collect more detailed statistics for this process */
@@ -1598,7 +1729,7 @@ static int jobmetrics_read (void)
 
 			if (ps != NULL)
 				/* FIXME: cmdline should be here instead of NULL */
-				jobmetrics_list_add (task_name, NULL, &pse);
+				jobmetrics_list_add (jobId, task_name, NULL, &pse);
 		} /* for (task_list) */
 
 		if ((status = vm_deallocate (port_task_self,
@@ -1644,11 +1775,17 @@ static int jobmetrics_read (void)
 	char cmdline[CMDLINE_BUFFER_SIZE];
 
 	int        status;
+    int        status_job;
 	procstat_t ps;
 	procstat_entry_t pse;
 	char       state;
 
+    char       jobId[PROCSTAT_NAME_LEN];
+
 	procstat_t *ps_ptr;
+
+    if (jobmetrics_set_jobs () < 0)
+        return -1;    
 
 	running = sleeping = zombies = stopped = paging = blocked = 0;
 	jobmetrics_list_reset ();
@@ -1670,11 +1807,15 @@ static int jobmetrics_read (void)
 			continue;
 
 		status = jobmetrics_read_process (pid, &ps, &state);
-		if (status != 0)
+        status_job = match_get_jobId(pid, jobId, PROCSTAT_NAME_LEN);
+        
+		if (status != 0 || status_job != 0)
 		{
 			DEBUG ("jobmetrics_read_process failed: %i", status);
 			continue;
 		}
+        
+        sstrncpy (ps.jobId, jobId, sizeof(ps.jobId));
 
 		pse.id       = pid;
 		pse.age      = 0;
@@ -1712,7 +1853,7 @@ static int jobmetrics_read (void)
 			case 'W': paging++;   break;
 		}
 
-		jobmetrics_list_add (ps.name,
+		jobmetrics_list_add (ps.jobId, ps.name,
 				jobmetrics_get_cmdline (pid, ps.name, cmdline, sizeof (cmdline)),
 				&pse);
 	}
