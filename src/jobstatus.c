@@ -132,17 +132,13 @@ static void jobstatus_list_add (jobstatus_t *js)
 
 static void jobstatus_list_reset (void)
 {
-    jobstatus_t *ps = list_head_g, *tmp_ps;
+    jobstatus_t *ps = list_head_g;
     
-    
-	if (list_head_g != NULL)
-	{
-        while(ps != NULL) {
-            tmp_ps = ps;
-            ps = ps->next;
-            free(tmp_ps);
+    while( list_head_g!= NULL) {
+            ps = list_head_g;
+            list_head_g = list_head_g->next;
+            free(ps);
         }
-    }	
 }
 
 static jobstatus_t* read_single_job (struct jobInfoEnt *job, jobstatus_t *js)
