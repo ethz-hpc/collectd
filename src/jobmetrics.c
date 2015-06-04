@@ -250,7 +250,7 @@ static void jobmetrics_list_register (const char *name, const char *jobId, const
 	}
 	memset (new, 0, sizeof (procstat_t));
 	sstrncpy (new->name, name, sizeof (new->name));
-    sstrncpy (new->jobId, jobId, sizeof (new->jobId));
+    	sstrncpy (new->jobId, jobId, sizeof (new->jobId));
 
 #if HAVE_REGEX_H
 	if (regexp != NULL)
@@ -308,6 +308,7 @@ static void jobmetrics_list_register (const char *name, const char *jobId, const
 		list_head_g = new;
 	else
 		ptr->next = new;
+
 } /* void jobmetrics_list_register */
 
 /* try to match jobId against entry, returns 1 if success */
@@ -351,8 +352,10 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
 
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 	{
-		if ((jobmetrics_list_match (jobId, name, cmdline, ps)) == 0)
+
+		if ((jobmetrics_list_match (jobId, name, cmdline, ps)) == 0){
 			continue;
+		}
 
 		for (pse = ps->instances; pse != NULL; pse = pse->next)
 			if ((pse->id == entry->id) || (pse->next == NULL))
@@ -485,6 +488,10 @@ static void jobmetrics_list_reset (void)
 	procstat_entry_t *pse;
 	procstat_entry_t *pse_prev;
 
+	ps = NULL;
+	pse = NULL;
+	pse_prev = NULL;
+
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 	{
 		ps->num_proc    = 0;
@@ -528,8 +535,8 @@ static void jobmetrics_list_reset (void)
 				pse_prev = pse;
 				pse = pse->next;
 			}
-		} /* while (pse != NULL) */
-	} /* for (ps = list_head_g; ps != NULL; ps = ps->next) */
+		} 
+	}
 }
 
 static int jobmetrics_init (void)
@@ -574,7 +581,7 @@ static int jobmetrics_init (void)
 #elif HAVE_PROCINFO_H
 	pagesize = getpagesize();
 #endif /* HAVE_PROCINFO_H */
-
+ INFO ("Jobmetrics plugin: init");
 	return (0);
 } /* int ps_init */
 
@@ -600,6 +607,7 @@ static void jobmetrics_submit_state (const char *state, double value)
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
 static void jobmetrics_submit_proc_list (procstat_t *ps)
 {
+
 	value_t values[2];
 	value_list_t vl = VALUE_LIST_INIT;
 
@@ -670,7 +678,7 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
 		plugin_dispatch_values (&vl);
 	}
 
-	DEBUG ("jobId = %s; name = %s; num_proc = %lu; num_lwp = %lu; "
+	DEBUG ("list_submit jobId = %s; name = %s; num_proc = %lu; num_lwp = %lu; "
 			"vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
 			"vmem_code = %lu; "
 			"vmem_minflt_counter = %"PRIi64"; vmem_majflt_counter = %"PRIi64"; "
@@ -683,6 +691,7 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
 			ps->vmem_minflt_counter, ps->vmem_majflt_counter,
 			ps->cpu_user_counter, ps->cpu_system_counter,
 			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
+
 } /* void ps_submit_proc_list */
 
 #if KERNEL_LINUX || KERNEL_SOLARIS
@@ -996,6 +1005,20 @@ int jobmetrics_read_process (int pid, procstat_t *ps, char *state)
 
 		DEBUG("jobmetrics_read_process: not get io data for pid %i",pid);
 	}
+
+	DEBUG ("jobmetrics_read_process; name = %s; num_proc = %lu; num_lwp = %lu; "
+                        "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
+                        "vmem_code = %lu; "
+                        "vmem_minflt_counter = %"PRIi64"; vmem_majflt_counter = %"PRIi64"; "
+                        "cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
+                        "io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
+                        "io_syscr = %"PRIi64"; io_syscw = %"PRIi64";",
+                         ps->name, ps->num_proc, ps->num_lwp,
+                        ps->vmem_size, ps->vmem_rss,
+                        ps->vmem_data, ps->vmem_code,
+                        ps->vmem_minflt_counter, ps->vmem_majflt_counter,
+                        ps->cpu_user_counter, ps->cpu_system_counter,
+                        ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
 
 	/* success */
 	return (0);
@@ -1448,12 +1471,14 @@ static int jobmetrics_set_jobs(void)
     char jobId[PROCSTAT_NAME_LEN], name[PROCSTAT_NAME_LEN];
     int pid;
 
+
     if ((dfd = opendir("/cgroup/cpuset/lsf/euler")) == NULL){
         ERROR("jobmetrics plugin: could not open LSF fs");
         return -1;
     }
     while ((dp = readdir(dfd)) != NULL)
     {
+    	name[0] = '\0';
         if (dp->d_type & DT_DIR){
             if (strcmp (dp->d_name, "..") != 0 && strcmp (dp->d_name, ".") != 0) {
                 jobmetrics_read_jobid(dp->d_name, jobId);
@@ -1462,16 +1487,19 @@ static int jobmetrics_set_jobs(void)
                 fp = fopen(filename,"r");
                 if (fp == NULL ){
                      ERROR("jobmetrics plugin: could not open LSF fs");
-                     return -1;
+                     continue;
                 }
                 while(fgets(line, 80, fp) != NULL)
                 {
                    sscanf (line, "%d", &pid);
                    sprintf (filename, "/proc/%i/stat", pid);
+		
                    if ((fh = fopen (filename, "r")) == NULL)
                         return -1;
                    if (fgets(line, sizeof(line), fh) != NULL){
-                        jobmetrics_read_name(line, name);                        
+                        jobmetrics_read_name(line, name); 
+			if ((strcmp(name,"res") != 0) && (!isdigit(name[0])) && (name[0] != '\0'))
+		        	jobmetrics_list_register (name, jobId, NULL);	                       
                    }       
                    fclose(fh);
                 }
@@ -1480,9 +1508,6 @@ static int jobmetrics_set_jobs(void)
         }
     }
     closedir (dfd);
-
-    if ((strcmp(name,"res") != 0) && (!isdigit(name[0])))
-        jobmetrics_list_register (name, jobId, NULL);
 
     return 0;
 }
@@ -1768,7 +1793,7 @@ static int jobmetrics_read (void)
 	int paging   = 0;
 	int blocked  = 0;
 
-	struct dirent *ent;
+struct dirent *ent;
 	DIR           *proc;
 	int            pid;
 
@@ -1780,82 +1805,109 @@ static int jobmetrics_read (void)
 	procstat_entry_t pse;
 	char       state;
 
-    char       jobId[PROCSTAT_NAME_LEN];
-
+    char       jobId[PROCSTAT_NAME_LEN],name[PROCSTAT_NAME_LEN];
+	char filename[100], line[80];
+	FILE *fp,*fh;
 	procstat_t *ps_ptr;
+	
 
     if (jobmetrics_set_jobs () < 0)
-        return -1;    
-
+        return -1;   
+	
 	running = sleeping = zombies = stopped = paging = blocked = 0;
 	jobmetrics_list_reset ();
 
-	if ((proc = opendir ("/proc")) == NULL)
+	if ((proc = opendir ("/cgroup/cpuset/lsf/euler")) == NULL)
 	{
 		char errbuf[1024];
-		ERROR ("Cannot open `/proc': %s",
+		ERROR ("Cannot open `/cgroup/cpuset/lsf/euler': %s",
 				sstrerror (errno, errbuf, sizeof (errbuf)));
 		return (-1);
 	}
 
 	while ((ent = readdir (proc)) != NULL)
 	{
-		if (!isdigit (ent->d_name[0]))
-			continue;
+	   if (ent->d_type & DT_DIR){	
+	     if (strcmp (ent->d_name, "..") != 0 && strcmp (ent->d_name, ".") != 0){
 
-		if ((pid = atoi (ent->d_name)) < 1)
-			continue;
+		jobmetrics_read_jobid(ent->d_name, jobId);
+		sprintf( filename , "%s/%s/%s", "/cgroup/cpuset/lsf/euler", ent->d_name,"tasks");	
+		fp = fopen(filename,"r");
+                if (fp == NULL ){
+                     ERROR("jobmetrics plugin: could not open LSF fs");
+                     return -1;
+                }
+		
+		while(fgets(line, 80, fp) != NULL)
+                {
+                   	sscanf (line, "%d", &pid);
+           		sprintf (filename, "/proc/%i/stat", pid);
+                   	if ((fh = fopen (filename, "r")) == NULL)	
+                        	return -1;
+			name[0] = '\0';
+                   	if (fgets(line, sizeof(line), fh) != NULL){
+                        	jobmetrics_read_name(line, name);
+                   	}
+                  	fclose(fh);
+     			
+			if ((strcmp(name,"res") != 0) && (!isdigit(name[0])) && (name[0] != '\0'))
+			{
 
-		status = jobmetrics_read_process (pid, &ps, &state);
-        status_job = match_get_jobId(pid, jobId, PROCSTAT_NAME_LEN);
+				status = jobmetrics_read_process (pid, &ps, &state);
+				status_job = match_get_jobId(pid, jobId, PROCSTAT_NAME_LEN);
         
-		if (status != 0 || status_job != 0)
-		{
-			DEBUG ("jobmetrics_read_process failed: %i", status);
-			continue;
-		}
+				if (status != 0 || status_job != 0)
+				{
+					ERROR ("jobmetrics_read_process failed: %i", status);
+					continue;
+				}
         
-        sstrncpy (ps.jobId, jobId, sizeof(ps.jobId));
+				sstrncpy (ps.jobId, jobId, sizeof(ps.jobId));
 
-		pse.id       = pid;
-		pse.age      = 0;
+				pse.id       = pid;
+				pse.age      = 0;
 
-		pse.num_proc   = ps.num_proc;
-		pse.num_lwp    = ps.num_lwp;
-		pse.vmem_size  = ps.vmem_size;
-		pse.vmem_rss   = ps.vmem_rss;
-		pse.vmem_data  = ps.vmem_data;
-		pse.vmem_code  = ps.vmem_code;
-		pse.stack_size = ps.stack_size;
+				pse.num_proc   = ps.num_proc;
+				pse.num_lwp    = ps.num_lwp;
+				pse.vmem_size  = ps.vmem_size;
+				pse.vmem_rss   = ps.vmem_rss;
+				pse.vmem_data  = ps.vmem_data;
+				pse.vmem_code  = ps.vmem_code;
+				pse.stack_size = ps.stack_size;
 
-		pse.vmem_minflt = 0;
-		pse.vmem_minflt_counter = ps.vmem_minflt_counter;
-		pse.vmem_majflt = 0;
-		pse.vmem_majflt_counter = ps.vmem_majflt_counter;
+				pse.vmem_minflt = 0;
+				pse.vmem_minflt_counter = ps.vmem_minflt_counter;
+				pse.vmem_majflt = 0;
+				pse.vmem_majflt_counter = ps.vmem_majflt_counter;
 
-		pse.cpu_user = 0;
-		pse.cpu_user_counter = ps.cpu_user_counter;
-		pse.cpu_system = 0;
-		pse.cpu_system_counter = ps.cpu_system_counter;
+				pse.cpu_user = 0;
+				pse.cpu_user_counter = ps.cpu_user_counter;
+				pse.cpu_system = 0;
+				pse.cpu_system_counter = ps.cpu_system_counter;
 
-		pse.io_rchar = ps.io_rchar;
-		pse.io_wchar = ps.io_wchar;
-		pse.io_syscr = ps.io_syscr;
-		pse.io_syscw = ps.io_syscw;
+				pse.io_rchar = ps.io_rchar;
+				pse.io_wchar = ps.io_wchar;
+				pse.io_syscr = ps.io_syscr;
+				pse.io_syscw = ps.io_syscw;
 
-		switch (state)
-		{
-			case 'R': running++;  break;
-			case 'S': sleeping++; break;
-			case 'D': blocked++;  break;
-			case 'Z': zombies++;  break;
-			case 'T': stopped++;  break;
-			case 'W': paging++;   break;
+				switch (state)
+				{
+					case 'R': running++;  break;
+					case 'S': sleeping++; break;
+					case 'D': blocked++;  break;
+					case 'Z': zombies++;  break;
+					case 'T': stopped++;  break;
+					case 'W': paging++;   break;
+				}
+
+				jobmetrics_list_add (ps.jobId, ps.name, 
+					jobmetrics_get_cmdline (pid, ps.name, 
+					cmdline, sizeof (cmdline)),&pse);
+			}
 		}
-
-		jobmetrics_list_add (ps.jobId, ps.name,
-				jobmetrics_get_cmdline (pid, ps.name, cmdline, sizeof (cmdline)),
-				&pse);
+		fclose(fp);
+	    }	
+	  }
 	}
 
 	closedir (proc);
@@ -1868,7 +1920,9 @@ static int jobmetrics_read (void)
 	jobmetrics_submit_state ("blocked",  blocked);
 
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
+	{
 		jobmetrics_submit_proc_list (ps_ptr);
+	}
 
 	read_fork_rate();
 /* #endif KERNEL_LINUX */
