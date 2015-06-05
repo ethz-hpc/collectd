@@ -50,6 +50,7 @@ typedef struct  jobstatus
 	unsigned long npend;
 	unsigned long ncores_run;
 	unsigned long ncores_pend;
+    unsigned long ndep;
 	struct jobstatus *next;
 } jobstatus_t;
 
@@ -85,6 +86,11 @@ static void jobstatus_submit (jobstatus_t *js)
         vl.values[0].gauge = js->ncores_pend;
         vl.values_len = 1;
         plugin_dispatch_values (&vl);
+
+    sstrncpy (vl.type, "js_ndep", sizeof (vl.type));
+        vl.values[0].gauge = js->ndep;
+        vl.values_len = 1;
+        plugin_dispatch_values (&vl);
 }
 
 static void jobstatus_list_add (jobstatus_t *js)
@@ -102,6 +108,7 @@ static void jobstatus_list_add (jobstatus_t *js)
         new->npend = js->npend;
         new->ncores_run = js->ncores_run;
         new->ncores_pend = js->ncores_pend;
+        new->ndep = js->ndep
 	new->next = NULL;
 
 	if (list_head_g == NULL){
@@ -125,6 +132,7 @@ static void jobstatus_list_add (jobstatus_t *js)
 			ps->npend += new->npend;
 			ps->ncores_run += new->ncores_run;
 			ps->ncores_pend += new->ncores_pend;
+            ps->ndep += new->ndep;
 		}
 	}	
 
@@ -281,7 +289,14 @@ static int jobstatus_read (void)
 			js->npend = -1;
 			js->ncores_run = -1;
 			js->ncores_pend = -1;
+            js->ndep = -1;
 		}
+
+        struct jobDepRequest jobdepReq;
+        jobdepReq.jobId = job->jobId;
+        jobdepReq.options = QUERY_DEPEND_UNSATISFIED;
+        struct *jobDependInfo = lsb_getjobdepinfo(&jobdepReq); 
+        js->ndep = jobDependInfo->numJobs;
 
 		jobstatus_list_add(js);
 	}		
