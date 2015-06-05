@@ -1282,11 +1282,11 @@ static int jobmetrics_read (void)
                 fclose(fh);
 
                 //if pid is not a thread than get some data from it
-                if ( !isthread(pid)) 
+                if ((strcmp(name,"res") != 0) && (!isdigit(name[0]))
+                        && (name[0] != '\0'))
                 {
                     //we exclude any LSF process
-     			    if ((strcmp(name,"res") != 0) && (!isdigit(name[0])) 
-                        && (name[0] != '\0'))
+     			    if ( !isthread(pid)) 
 			        {
 
 				        status = jobmetrics_read_process (pid, &ps, &state);
