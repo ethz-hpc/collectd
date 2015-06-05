@@ -1207,7 +1207,7 @@ static int isthread(int pid)
 
     int pgrp = fields[0][4]; 
     
-    if ( pgrp != pid )
+    if ( pgrp != pid && fields[0][19] != 1 )
         return 1;
     else
         return 0;
