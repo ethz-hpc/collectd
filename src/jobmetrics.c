@@ -36,7 +36,7 @@
 
 #define MAXPID 65536
 /* #endif KERNEL_LINUX */
-
+#endif
 
 #if HAVE_PROCINFO_H
 #  include <procinfo.h>
@@ -46,9 +46,6 @@
 #define MAXTHRDENTRY 16
 #define MAXARGLN 1024
 /* #endif HAVE_PROCINFO_H */
-
-#else
-# error "No applicable input method."
 #endif
 
 #if HAVE_REGEX_H
