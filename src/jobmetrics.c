@@ -207,6 +207,7 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
     procstat_t *new;
     procstat_t *ptr;
 	procstat_entry_t *pse;
+    int already_added;
 
 	if (entry->id == 0)
 		return;
@@ -226,8 +227,20 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
     }
     else
     {
+        ps = list_head_g;
+        already_added = 0;
+
+        already_added = 0;
+        while (ps != NULL)
+        {
+                if (jobmetrics_list_match (jobId, name, cmdline, ps) != 0)
+                { already_added = 1; break;}
+                ps = ps->next;
+        }
+
         //no job added with this id and name
-        if ((jobmetrics_list_match (jobId, name, cmdline, ps)) == 0){
+        if (! already_added)
+        {
             new = (procstat_t *) malloc (sizeof (procstat_t));
             if (new == NULL)
             {
