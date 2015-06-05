@@ -26,7 +26,7 @@
 #include "configfile.h"
 
 
-#elif KERNEL_LINUX
+#if KERNEL_LINUX
 #  if HAVE_LINUX_CONFIG_H
 #    include <linux/config.h>
 #  endif
@@ -38,7 +38,7 @@
 /* #endif KERNEL_LINUX */
 
 
-#elif HAVE_PROCINFO_H
+#if HAVE_PROCINFO_H
 #  include <procinfo.h>
 #  include <sys/types.h>
 
@@ -135,7 +135,7 @@ typedef struct procstat
 static procstat_t *list_head_g = NULL;
 
 
-#elif KERNEL_LINUX
+#if KERNEL_LINUX
 static long pagesize_g;
 /* #endif KERNEL_LINUX */
 
@@ -151,7 +151,6 @@ int getargs (void *processBuffer, int bufferLen, char *argsBuffer, int argsLen);
 /* try to match jobId against entry, returns 1 if success */
 static int jobmetrics_list_match (const char *jobId, const char *name, const char *cmdline, procstat_t *ps)
 {
-    int idx;
     
 #if HAVE_REGEX_H
 	if (ps->re != NULL)
@@ -205,7 +204,7 @@ static void jobmetrics_list_remove(const char *jobId)
 
 
 /* add process entry to 'instances' of process 'name' (or refresh it) and JOBID jobId*/
-static void jobmetrics_list_add (const char *jobId, const char *name, const char *cmdline, procstat_entry_t *entry, unsigned long pid)
+static void jobmetrics_list_add (const char *jobId, const char *name, const char *cmdline, procstat_entry_t *entry)
 {
 	procstat_t *ps;
     procstat_t *new;
@@ -573,8 +572,8 @@ static void jobmetrics_submit_proc_sublist (procstat_t *psj)
         vl.values_len = 2;
         sstrncpy (vl.host, hostname_g, sizeof (vl.host));
         sstrncpy (vl.plugin, "jobmetrics", sizeof (vl.plugin));
-        sprintf (instance,"%s-%d", ps->jobId, ps->id);
-        sstrncpy (vl.plugin_instance, ps->jobId, sizeof (vl.plugin_instance));
+        sprintf (instance,"%s-%d", psj->jobId, ps->id);
+        sstrncpy (vl.plugin_instance, instance, sizeof (vl.plugin_instance));
 
         sstrncpy (vl.type, "jm_vm", sizeof (vl.type));
         vl.values[0].gauge = ps->vmem_size;
@@ -1346,6 +1345,7 @@ static int jobmetrics_read (void)
 		        }
 		        fclose(fp);
 	         }	
+          }   
 	    }
 	}
 
