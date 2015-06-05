@@ -312,7 +312,7 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
 		pse->io_syscr   = entry->io_syscr;
 		pse->io_syscw   = entry->io_syscw;
         pse->voluntary_ctxt_switches = entry->voluntary_ctxt_switches;
-        pse->novoluntary_ctxt_switches = entry->novoluntary_ctxt_switches;
+        pse->nonvoluntary_ctxt_switches = entry->nonvoluntary_ctxt_switches;
 
         ps->num_proc   += pse->num_proc;
 		ps->num_lwp    += pse->num_lwp;
@@ -328,7 +328,7 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
 		ps->io_syscw   += ((pse->io_syscw == -1)?0:pse->io_syscw);
     
         ps->voluntary_ctxt_switches += pse->voluntary_ctxt_switches;
-        ps->novoluntary_ctxt_switches += pse->novoluntary_ctxt_switches;
+        ps->nonvoluntary_ctxt_switches += pse->nonvoluntary_ctxt_switches;
 
 		if ((entry->vmem_minflt_counter == 0)
 				&& (entry->vmem_majflt_counter == 0))
@@ -1375,6 +1375,9 @@ static int jobmetrics_read (void)
 				        pse.vmem_code  = ps.vmem_code;
 				        pse.stack_size = ps.stack_size;
 
+                        pse.voluntary_ctxt_switches = ps.voluntary_ctxt_switches;
+                        pse.nonvoluntary_ctxt_switches = ps.nonvoluntary_ctxt_switches;
+                        
 				        pse.vmem_minflt = 0;
 				        pse.vmem_minflt_counter = ps.vmem_minflt_counter;
 				        pse.vmem_majflt = 0;
