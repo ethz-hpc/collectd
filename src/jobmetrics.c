@@ -569,7 +569,7 @@ static void jobmetrics_submit_proc_sublist (procstat_t *psj)
         vl.values_len = 2;
         sstrncpy (vl.host, hostname_g, sizeof (vl.host));
         sstrncpy (vl.plugin, "jobmetrics", sizeof (vl.plugin));
-        sprintf (instance,"%s-%d", psj->jobId, ps->id);
+        sprintf (instance,"%s-%lu", psj->jobId, ps->id);
         sstrncpy (vl.plugin_instance, instance, sizeof (vl.plugin_instance));
 
         sstrncpy (vl.type, "jm_vm", sizeof (vl.type));
