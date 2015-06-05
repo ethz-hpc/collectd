@@ -640,7 +640,7 @@ static void jobmetrics_submit_proc_sublist (procstat_t *psj)
                 "cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
                 "io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
                 "io_syscr = %"PRIi64"; io_syscw = %"PRIi64";",
-                ps->jobId, ps->name, ps->num_proc, ps->num_lwp,
+                psj->jobId, psj->name, ps->num_proc, ps->num_lwp,
                 ps->vmem_size, ps->vmem_rss,
                 ps->vmem_data, ps->vmem_code,
                 ps->vmem_minflt_counter, ps->vmem_majflt_counter,
