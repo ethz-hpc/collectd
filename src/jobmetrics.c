@@ -1226,6 +1226,8 @@ static void jobmetrics_read_jobid(char *dir_name, char *jobId)
             }
         }
         if ( dir_name[ch] == '[' ){
+            jobId[i] = '.';
+            i++;
             ch++;
             while (dir_name[ch] != ']'){
                 jobId[i] = dir_name[ch];
