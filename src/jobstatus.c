@@ -108,7 +108,7 @@ static void jobstatus_list_add (jobstatus_t *js)
         new->npend = js->npend;
         new->ncores_run = js->ncores_run;
         new->ncores_pend = js->ncores_pend;
-        new->ndep = js->ndep
+        new->ndep = js->ndep;
 	new->next = NULL;
 
 	if (list_head_g == NULL){
@@ -296,8 +296,8 @@ static int jobstatus_read (void)
             struct jobDepRequest jobdepReq;
             jobdepReq.jobId = job->jobId;
             jobdepReq.options = QUERY_DEPEND_UNSATISFIED;
-            struct *jobDependInfo = lsb_getjobdepinfo(&jobdepReq); 
-            js->ndep = jobDependInfo->numJobs;
+            struct jobDependInfo *jobDep = lsb_getjobdepinfo(&jobdepReq); 
+            js->ndep = jobDep->numJobs;
         }
         else
             js->ndep = 0;
