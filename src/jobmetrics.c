@@ -76,6 +76,8 @@ typedef struct procstat_entry_s
 	unsigned long vmem_data;
 	unsigned long vmem_code;
 	unsigned long stack_size;
+    unsigned long voluntary_ctxt_switches;
+    unsigned long nonvoluntary_ctxt_switches;
 
 	unsigned long vmem_minflt;
 	unsigned long vmem_majflt;
@@ -112,6 +114,8 @@ typedef struct procstat
 	unsigned long vmem_data;
 	unsigned long vmem_code;
 	unsigned long stack_size;
+    unsigned long voluntary_ctxt_switches;
+    unsigned long nonvoluntary_ctxt_switches;
 
 	derive_t vmem_minflt_counter;
 	derive_t vmem_majflt_counter;
@@ -829,6 +833,35 @@ static procstat_t *jobmetrics_read_io (int pid, procstat_t *ps)
 	return (ps);
 } /* procstat_t *ps_read_io */
 
+static procstat_t *jobmetrics_read_ctxt (int pid, procstat_t *ps)
+{
+    FILE *fh;
+    char  filename[64];
+    char  buffer[1024];
+
+    char *fields[64];
+    int  numfields;
+
+    ssnprintf (filename, sizeof (filename), "/proc/%i/status", pid);
+    if ((fh = fopen (filename, "r")) == NULL)
+                return NULL;
+    while (fgets (buffer, sizeof(buffer), fh) != NULL)
+    {
+
+       if (strncmp (buffer, "voluntary_ctxt_switches", 23) == 0){
+          numfields = strsplit (buffer, fields,STATIC_ARRAY_SIZE (fields));
+          ps->voluntary_ctxt_switches = atoll(fields[1]);
+       }
+       if (strncmp (buffer, "nonvoluntary_ctxt_switches", 26) == 0){
+          numfields = strsplit (buffer, fields,STATIC_ARRAY_SIZE (fields));
+          ps->nonvoluntary_ctxt_switches = atoll(fields[1]);
+       }
+    }
+    fclose (fh);
+
+    return ps;
+}
+
 int jobmetrics_read_process (int pid, procstat_t *ps, char *state)
 {
 	char  filename[64];
@@ -973,6 +1006,14 @@ int jobmetrics_read_process (int pid, procstat_t *ps, char *state)
 
 		DEBUG("jobmetrics_read_process: not get io data for pid %i",pid);
 	}
+
+    if ( ( jobmetrics_read_ctxt(pid, ps)) == NULL)
+    {
+        ps->voluntary_ctxt_switches = -1;
+        ps->nonvoluntary_ctxt_switches = -1;
+
+        DEBUG("jobmetrics_read_process: not get ctxt data for pid %i",pid);
+    }
 
 	DEBUG ("jobmetrics_read_process; name = %s; num_proc = %lu; num_lwp = %lu; "
                         "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
@@ -1255,11 +1296,18 @@ static int jobmetrics_read (void)
 		    sprintf( filename , "%s/%s/%s", "/cgroup/cpuset/lsf/euler", ent->d_name,"tasks");	
 		    fp = fopen(filename,"r");
             if (fp == NULL ){
-                     jobmetrics_list_remove (jobId);
                      ERROR("jobmetrics plugin: could not open LSF fs");
                      return -1;
             }
-	
+
+            //if job is DONE
+            size_t size;
+            size = ftell(fp);
+            fseek(fp, 0, SEEK_END);
+            size = ftell(fp);
+            if ( size > 0) 
+                jobmetrics_list_remove (jobId);
+
             //read PIDs from a job	
 		    while(fgets(line, 80, fp) != NULL)
              {
