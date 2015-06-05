@@ -538,6 +538,7 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
 		plugin_dispatch_values (&vl);
 	}
 
+
 	DEBUG ("list_submit jobId = %s; name = %s; num_proc = %lu; num_lwp = %lu; "
 			"vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
 			"vmem_code = %lu; "
@@ -552,7 +553,7 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
 			ps->cpu_user_counter, ps->cpu_system_counter,
 			ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
 
-} /* void jobmetrcis_submit_proc_list */
+} /* void jobmetrics_submit_proc_list */
 
 /* submit info about specific process (e.g.: memory taken, cpu usage, etc..) instances*/
 static void jobmetrics_submit_proc_sublist (procstat_t *psj)
@@ -1358,6 +1359,7 @@ static int jobmetrics_read (void)
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 	{
 		jobmetrics_submit_proc_list (ps_ptr);
+        jobmetrics_submit_proc_sublist (ps_ptr);
 	}
 
 	read_fork_rate();
