@@ -110,6 +110,8 @@ jm_rss          value:GAUGE:0:9223372036854775807
 jm_stacksize        value:GAUGE:0:9223372036854775807
 jm_state        value:GAUGE:0:65535
 jm_vm           value:GAUGE:0:9223372036854775807
+jm_ctxt     value:GAUGE:0:9223372036854775807
+jm_nonctxt   value:GAUGE:0:9223372036854775807
 js_ncores_pend         value:GAUGE:0:U
 js_ncores_run          value:GAUGE:0:U
 js_npend               value:GAUGE:0:U
