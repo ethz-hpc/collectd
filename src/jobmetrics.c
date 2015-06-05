@@ -1164,53 +1164,32 @@ static void jobmetrics_read_jobid(char *dir_name, char *jobId)
 
 static int isthread(int pid)
 {
+    FILE *fh;
     char  filename[64];
     char  buffer[1024];
 
     char *fields[64];
-    char  fields_len;
+    int  numfields;
 
-    int   buffer_len;
-
-    char *buffer_ptr;
-    size_t name_start_pos;
-    size_t name_end_pos;
-
-    ssnprintf (filename, sizeof (filename), "/proc/%i/stat", pid);
-    buffer_len = read_file_contents (filename,
-                        buffer, sizeof(buffer) - 1);
-    if (buffer_len <= 0)
+    ssnprintf (filename, sizeof (filename), "/proc/%i/status", pid);
+    if ((fh = fopen (filename, "r")) == NULL)
                 return (0);
-        buffer[buffer_len] = 0;
-    name_start_pos = 0;
-    while ((buffer[name_start_pos] != '(')
-           && (name_start_pos < buffer_len))
-       name_start_pos++;
-
-    name_end_pos = buffer_len;
-    while ((buffer[name_end_pos] != ')')
-           && (name_end_pos > 0))
-       name_end_pos--;
-
-    if ((buffer_len - name_end_pos) < 2)
-                return (-1);
-    buffer_ptr = &buffer[name_end_pos + 2];
-
-    fields_len = strsplit (buffer_ptr, fields, STATIC_ARRAY_SIZE (fields));
-    if (fields_len < 22)
+    while (fgets (buffer, sizeof(buffer), fh) != NULL)
     {
-       INFO ("jobmetrics plugin: jobmetrics_read_process (pid = %i):"
-              " `%s' has only %i fields..",
-              (int) pid, filename, fields_len);
-       return (-1);
-    }
 
-    int pgrp = fields[0][4]; 
-    
-    if ( pgrp != pid && fields[0][19] != 1 )
-        return 1;
-    else
+       if (strncmp (buffer, "Tgid", 4) != 0)
+                   continue;
+        
+       numfields = strsplit (buffer, fields,STATIC_ARRAY_SIZE (fields)); 
+       break; 
+    }
+    fclose (fh);
+
+    if (atoi(fields[1]) == pid)
         return 0;
+    else
+        return 1;
+
 }
 
 /* do actual readings from kernel */
