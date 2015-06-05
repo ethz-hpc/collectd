@@ -1232,7 +1232,6 @@ static int jobmetrics_read (void)
 	char cmdline[CMDLINE_BUFFER_SIZE];
 
 	int        status;
-    int        status_job;
 	procstat_t ps;
 	procstat_entry_t pse;
 	char       state;
@@ -1291,7 +1290,7 @@ static int jobmetrics_read (void)
 			        {
 
 				        status = jobmetrics_read_process (pid, &ps, &state);
-                        if (status != 0 || status_job != 0)
+                        if (status != 0 )
 				        {
 					        ERROR ("jobmetrics_read_process failed: %i", status);
 					        continue;
