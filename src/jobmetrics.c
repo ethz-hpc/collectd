@@ -1319,8 +1319,8 @@ static int jobmetrics_read (void)
 					        cmdline, sizeof (cmdline)),&pse);
 			        }
 		        }
-		        fclose(fp);
 	         }	
+		        fclose(fp);
           }   
 	    }
 	}
