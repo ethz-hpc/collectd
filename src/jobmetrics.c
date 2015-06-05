@@ -34,6 +34,8 @@
 #    define CONFIG_HZ 100
 #  endif
 
+#include <sys/stat.h>
+
 #define MAXPID 65536
 /* #endif KERNEL_LINUX */
 #endif
@@ -198,7 +200,14 @@ static void jobmetrics_list_remove(const char *jobId)
             }
             ps = ps->next;        
         }
-        ps_behind->next = ps_ahead;
+        if ( ps_behind == ps )
+                ps_behind = NULL;
+        else
+                ps_behind->next = ps_ahead;
+
+        if ( list_head_g == ps )
+                list_head_g = ps_ahead;
+
         free(ps);
     }
 }
@@ -1215,8 +1224,20 @@ static void jobmetrics_read_jobid(char *dir_name, char *jobId)
                i++;
                ch++;
             }
-            jobId[i] = '\0';
-            break;
+        }
+        if ( dir_name[ch] == '[' ){
+            ch++;
+            while (dir_name[ch] != ']'){
+                jobId[i] = dir_name[ch];
+                ch++;
+                i++;
+            }
+                jobId[i] = '\0';
+                break;
+        }
+        else if (i != 0){
+                jobId[i] = '\0';
+                break;
         }
     }
 }
@@ -1306,13 +1327,10 @@ static int jobmetrics_read (void)
             }
 
             //if job is DONE
-            size_t size;
-            size = ftell(fp);
-            fseek(fp, 0, SEEK_END);
-            size = ftell(fp);
-            if ( size > 0) 
+            if ( fgets(line, 80, fp) == NULL){ 
                 jobmetrics_list_remove (jobId);
-
+            }
+            else{
             //read PIDs from a job	
 		    while(fgets(line, 80, fp) != NULL)
              {
@@ -1387,6 +1405,7 @@ static int jobmetrics_read (void)
 		        }
 	         }	
 		        fclose(fp);
+            }
           }   
 	    }
 	}
