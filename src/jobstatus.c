@@ -63,7 +63,7 @@ static void jobstatus_submit (jobstatus_t *js)
         vl.values = values;
         vl.values_len = 2;
         sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-        sstrncpy (vl.plugin, "jobstatus", sizeof (vl.plugin));
+        sstrncpy (vl.plugin, "user", sizeof (vl.plugin));
         sstrncpy (vl.plugin_instance, js->name, sizeof (vl.plugin_instance));
 
 	sstrncpy (vl.type, "js_nrun", sizeof (vl.type));
