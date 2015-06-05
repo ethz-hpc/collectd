@@ -291,12 +291,16 @@ static int jobstatus_read (void)
 			js->ncores_pend = -1;
             js->ndep = -1;
 		}
-
-        struct jobDepRequest jobdepReq;
-        jobdepReq.jobId = job->jobId;
-        jobdepReq.options = QUERY_DEPEND_UNSATISFIED;
-        struct *jobDependInfo = lsb_getjobdepinfo(&jobdepReq); 
-        js->ndep = jobDependInfo->numJobs;
+        
+        if (job->status == 4){
+            struct jobDepRequest jobdepReq;
+            jobdepReq.jobId = job->jobId;
+            jobdepReq.options = QUERY_DEPEND_UNSATISFIED;
+            struct *jobDependInfo = lsb_getjobdepinfo(&jobdepReq); 
+            js->ndep = jobDependInfo->numJobs;
+        }
+        else
+            js->ndep = 0;
 
 		jobstatus_list_add(js);
 	}		
