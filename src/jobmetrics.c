@@ -187,6 +187,9 @@ static int jobmetrics_list_match (const char *jobId, const char *name, const cha
 static void jobmetrics_list_remove(const char *jobId)
 {
     procstat_t *ps, *ps_ahead, *ps_behind;
+    int found = 0 ;
+
+    ps = ps_ahead = ps_behind = NULL;
     
     if ( list_head_g != NULL)
     {
@@ -196,19 +199,22 @@ static void jobmetrics_list_remove(const char *jobId)
             if (strcmp(ps->jobId, jobId) == 0)
             {
                 ps_ahead = ps->next;
+                found = 1;
                 break;
             }
             ps = ps->next;        
         }
-        if ( ps_behind == ps )
-                ps_behind = NULL;
-        else
-                ps_behind->next = ps_ahead;
 
-        if ( list_head_g == ps )
+        if (found == 1){
+            if ( ps_behind == ps )
+                ps_behind = NULL;
+            else
+                ps_behind->next = ps_ahead;
+            if ( list_head_g == ps )
                 list_head_g = ps_ahead;
 
-        free(ps);
+            free(ps);
+        }
     }
 }
 
@@ -1331,6 +1337,7 @@ static int jobmetrics_read (void)
             //if job is DONE
             if ( fgets(line, 80, fp) == NULL){ 
                 jobmetrics_list_remove (jobId);
+                fclose(fp);
             }
             else{
             //read PIDs from a job	
