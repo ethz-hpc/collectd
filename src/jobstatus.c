@@ -58,39 +58,39 @@ static jobstatus_t *list_head_g = NULL;
 
 static void jobstatus_submit (jobstatus_t *js)
 {
-	value_t values[2];
-        value_list_t vl = VALUE_LIST_INIT;
+    value_t values[2];
+    value_list_t vl = VALUE_LIST_INIT;
 
-        vl.values = values;
-        vl.values_len = 2;
-        sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-        sstrncpy (vl.plugin, "user", sizeof (vl.plugin));
-        sstrncpy (vl.plugin_instance, js->name, sizeof (vl.plugin_instance));
+    vl.values = values;
+    vl.values_len = 2;
+    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+    sstrncpy (vl.plugin, "user", sizeof (vl.plugin));
+    sstrncpy (vl.plugin_instance, js->name, sizeof (vl.plugin_instance));
 
 	sstrncpy (vl.type, "js_nrun", sizeof (vl.type));
-        vl.values[0].gauge = js->nrun;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
+    vl.values[0].gauge = js->nrun;
+    vl.values_len = 1;
+    plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "js_npend", sizeof (vl.type));
-        vl.values[0].gauge = js->npend;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
+    vl.values[0].gauge = js->npend;
+    vl.values_len = 1;
+    plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "js_ncores_run", sizeof (vl.type));
-        vl.values[0].gauge = js->ncores_run;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
+    vl.values[0].gauge = js->ncores_run;
+    vl.values_len = 1;
+    plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "js_ncores_pend", sizeof (vl.type));
-        vl.values[0].gauge = js->ncores_pend;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
+    vl.values[0].gauge = js->ncores_pend;
+    vl.values_len = 1;
+    plugin_dispatch_values (&vl);
 
     sstrncpy (vl.type, "js_ndep", sizeof (vl.type));
-        vl.values[0].gauge = js->ndep;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
+    vl.values[0].gauge = js->ndep;
+    vl.values_len = 1;
+    plugin_dispatch_values (&vl);
 }
 
 static void jobstatus_list_add (jobstatus_t *js)
@@ -98,17 +98,17 @@ static void jobstatus_list_add (jobstatus_t *js)
 	jobstatus_t *new;
 
 	new = (jobstatus_t *) malloc (sizeof(jobstatus_t));
-        if (new == NULL)
-            return;
+    if (new == NULL)
+         return;
 
 	memset (new, 0, sizeof (jobstatus_t));
 
-        sstrncpy(new->name, js->name, sizeof(new->name));
-        new->nrun = js->nrun;
-        new->npend = js->npend;
-        new->ncores_run = js->ncores_run;
-        new->ncores_pend = js->ncores_pend;
-        new->ndep = js->ndep;
+    sstrncpy(new->name, js->name, sizeof(new->name));
+    new->nrun = js->nrun;
+    new->npend = js->npend;
+    new->ncores_run = js->ncores_run;
+    new->ncores_pend = js->ncores_pend;
+    new->ndep = js->ndep;
 	new->next = NULL;
 
 	if (list_head_g == NULL){
@@ -135,7 +135,6 @@ static void jobstatus_list_add (jobstatus_t *js)
             ps->ndep += new->ndep;
 		}
 	}	
-
 }
 
 static void jobstatus_list_reset (void)
@@ -161,14 +160,15 @@ static jobstatus_t* read_single_job (struct jobInfoEnt *job, jobstatus_t *js)
 		js->nrun = 1;
 		js->npend = 0;
 		js->ncores_run = job->numExHosts;
-                js->ncores_pend = 0;
-    	}
+        js->ncores_pend = 0;
+    }
 	else{
 		js->npend = 1;
 		js->nrun = 0;
 		js->ncores_run = 0;
 		js->ncores_pend = job->submit.numProcessors;
-    	}
+    }
+
 	js->next = NULL;
 
     return js;
@@ -177,10 +177,10 @@ static jobstatus_t* read_single_job (struct jobInfoEnt *job, jobstatus_t *js)
 static int add_lsf_conf(const char *key, const char *value)
 {
 	lsf_conf = (lsf_conf_file_t *) malloc (sizeof(lsf_conf_file_t));
-        memset (lsf_conf, '\0', sizeof (lsf_conf_file_t));
+    memset (lsf_conf, '\0', sizeof (lsf_conf_file_t));
 
  	if ((strcasecmp (key, "LSF_SERVERDIR") == 0))
-        {
+    {
 	    lsf_conf->serverdir = strdup(value);
             if ( lsf_conf->serverdir == NULL)
                         return (-1);
@@ -255,7 +255,7 @@ static int jobstatus_read (void)
 	//Otherwise LSF can't read the configuration files
 	putenv(lsf_conf->serverdir);
 
-        if (lsb_init(NULL) < 0)
+    if (lsb_init(NULL) < 0)
 	{
 		ERROR ("jobstatus plugin: Could not start connection com LSF master");
 	}
