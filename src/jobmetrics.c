@@ -40,22 +40,8 @@
 /* #endif KERNEL_LINUX */
 #endif
 
-#if HAVE_PROCINFO_H
-#  include <procinfo.h>
-#  include <sys/types.h>
-
-#define MAXPROCENTRY 32
-#define MAXTHRDENTRY 16
-#define MAXARGLN 1024
-/* #endif HAVE_PROCINFO_H */
-#endif
-
 #if HAVE_REGEX_H
 # include <regex.h>
-#endif
-
-#if HAVE_KSTAT_H
-# include <kstat.h>
 #endif
 
 #ifndef CMDLINE_BUFFER_SIZE
@@ -137,24 +123,14 @@ typedef struct procstat
 
 static procstat_t *list_head_g = NULL;
 
-
 #if KERNEL_LINUX
 static long pagesize_g;
 /* #endif KERNEL_LINUX */
-
-#elif HAVE_PROCINFO_H
-static  struct procentry64 procentry[MAXPROCENTRY];
-static  struct thrdentry64 thrdentry[MAXTHRDENTRY];
-static int pagesize;
-
-int getargs (void *processBuffer, int bufferLen, char *argsBuffer, int argsLen);
-#endif /* HAVE_PROCINFO_H */
-
+#endif 
 
 /* try to match jobId against entry, returns 1 if success */
 static int jobmetrics_list_match (const char *jobId, const char *name, const char *cmdline, procstat_t *ps)
 {
-    
 #if HAVE_REGEX_H
 	if (ps->re != NULL)
 	{
@@ -171,7 +147,7 @@ static int jobmetrics_list_match (const char *jobId, const char *name, const cha
 				/* nmatch = */ 0,
 				/* pmatch = */ NULL,
 				/* eflags = */ 0);
-		if (status == 0)
+		if (status == 0 && strcmp (ps->jobId, jobId) == 0)
 			return (1);
 	}
 	else
@@ -191,35 +167,35 @@ static void jobmetrics_list_remove(const char *jobId)
 
     ps = ps_ahead = ps_behind = NULL;
     
-    if ( list_head_g != NULL)
+    if (list_head_g != NULL)
     {
         ps = list_head_g;
         while (ps != NULL){
-            ps_behind = ps;
             if (strcmp(ps->jobId, jobId) == 0)
             {
                 ps_ahead = ps->next;
                 found = 1;
                 break;
             }
+            ps_behind = ps;
             ps = ps->next;        
         }
 
         if (found == 1){
-            if ( ps_behind == ps )
+            if (ps_behind == ps)
                 ps_behind = NULL;
             else
                 ps_behind->next = ps_ahead;
-            if ( list_head_g == ps )
+            if (list_head_g == ps)
                 list_head_g = ps_ahead;
 
             free(ps);
         }
-    }
+    }/*end if there is any entry on the list*/
 }
 
 
-/* add process entry to 'instances' of process 'name' (or refresh it) and JOBID jobId*/
+/* add process entry to 'instances' of process 'name' and job jobId (or refresh it)*/
 static void jobmetrics_list_add (const char *jobId, const char *name, const char *cmdline, procstat_entry_t *entry)
 {
 	procstat_t *ps;
@@ -231,7 +207,10 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
 	if (entry->id == 0)
 		return;
 
-    if ( list_head_g == NULL)
+
+    /*Since we do not register jobs, they come and go very fast, 
+    we need to add them before uptading the list*/
+    if (list_head_g == NULL)
     {
         new = (procstat_t *) malloc (sizeof (procstat_t));
         if (new == NULL)
@@ -249,15 +228,17 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
         ps = list_head_g;
         already_added = 0;
 
-        already_added = 0;
         while (ps != NULL)
         {
                 if (jobmetrics_list_match (jobId, name, cmdline, ps) != 0)
-                { already_added = 1; break;}
+                { 
+                    already_added = 1; 
+                    break;
+                }
                 ps = ps->next;
         }
 
-        //no job added with this id and name
+        /*no job added with this id and name, add it to the jobs list*/
         if (! already_added)
         {
             new = (procstat_t *) malloc (sizeof (procstat_t));
@@ -274,8 +255,12 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
                         break;
             ptr->next = new;
         }
-    }
+    }/*end create entry on the list*/
 
+    /*Now, we update the jobs that have been already added
+    The follwoing code is the same as processes.c
+    We just added more metrics and the jobid for LSF jobs
+    */
 	for (ps = list_head_g; ps != NULL; ps = ps->next)
 	{
 
@@ -410,9 +395,9 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
 		ps->cpu_user_counter   += pse->cpu_user;
 		ps->cpu_system_counter += pse->cpu_system;
 	}
-}
+}/*end list_add */
 
-/* remove old entries from instances of processes in list_head_g */
+/* remove old entries from instances of jobs in list_head_g */
 static void jobmetrics_list_reset (void)
 {
 	procstat_t *ps;
@@ -432,6 +417,8 @@ static void jobmetrics_list_reset (void)
 		ps->vmem_data   = 0;
 		ps->vmem_code   = 0;
 		ps->stack_size  = 0;
+        ps->voluntary_ctxt_switches    = 0;  
+        ps->nonvoluntary_ctxt_switches = 0;
 		ps->io_rchar = -1;
 		ps->io_wchar = -1;
 		ps->io_syscr = -1;
@@ -474,34 +461,13 @@ static int jobmetrics_init (void)
 {
 #if KERNEL_LINUX
 	pagesize_g = sysconf(_SC_PAGESIZE);
-	DEBUG ("pagesize_g = %li; CONFIG_HZ = %i;",
-			pagesize_g, CONFIG_HZ);
+	DEBUG ("pagesize_g = %li; CONFIG_HZ = %i;", pagesize_g, CONFIG_HZ);
 /* #endif KERNEL_LINUX */
 #endif
- INFO ("Jobmetrics plugin: init");
 	return (0);
 } /* int jobmetrics_init */
 
-/* submit global state (e.g.: qty of zombies, running, etc..) */
-static void jobmetrics_submit_state (const char *state, double value)
-{
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].gauge = value;
-
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy (vl.plugin, "jobmetrics", sizeof (vl.plugin));
-	sstrncpy (vl.plugin_instance, "", sizeof (vl.plugin_instance));
-	sstrncpy (vl.type, "jm_state", sizeof (vl.type));
-	sstrncpy (vl.type_instance, state, sizeof (vl.type_instance));
-
-	plugin_dispatch_values (&vl);
-}
-
-/* submit info about specific process (e.g.: memory taken, cpu usage, etc..) */
+/* submit info about specific job (e.g.: memory taken, cpu usage, etc..) */
 static void jobmetrics_submit_proc_list (procstat_t *ps)
 {
 
@@ -538,6 +504,16 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
 	vl.values[0].gauge = ps->stack_size;
 	vl.values_len = 1;
 	plugin_dispatch_values (&vl);
+    
+    sstrncpy (vl.type, "jm_ctxt", sizeof (vl.type));
+    vl.values[0].gauge = ps->voluntary_ctxt_switches;
+    vl.values_len = 1;
+    plugin_dispatch_values (&vl);    
+
+    sstrncpy (vl.type, "jm_nonctxt", sizeof (vl.type));
+    vl.values[0].gauge = ps->nonvoluntary_ctxt_switches;
+    vl.values_len = 1;
+    plugin_dispatch_values (&vl);    
 
 	sstrncpy (vl.type, "jm_cputime", sizeof (vl.type));
 	vl.values[0].derive = ps->cpu_user_counter;
@@ -635,6 +611,16 @@ static void jobmetrics_submit_proc_sublist (procstat_t *psj)
         vl.values_len = 1;
         plugin_dispatch_values (&vl);
 
+        sstrncpy (vl.type, "jm_ctxt", sizeof (vl.type));
+        vl.values[0].gauge = ps->voluntary_ctxt_switches;
+        vl.values_len = 1;
+        plugin_dispatch_values (&vl);
+
+        sstrncpy (vl.type, "jm_nonctxt", sizeof (vl.type));
+        vl.values[0].gauge = ps->nonvoluntary_ctxt_switches;
+        vl.values_len = 1; 
+        plugin_dispatch_values (&vl);  
+
         sstrncpy (vl.type, "jm_cputime", sizeof (vl.type));
         vl.values[0].derive = ps->cpu_user_counter;
         vl.values[1].derive = ps->cpu_system_counter;
@@ -686,27 +672,10 @@ static void jobmetrics_submit_proc_sublist (procstat_t *psj)
     }
 }
 
-#if KERNEL_LINUX 
-static void jobmetrics_submit_fork_rate (derive_t value)
-{
-	value_t values[1];
-	value_list_t vl = VALUE_LIST_INIT;
-
-	values[0].derive = value;
-
-	vl.values = values;
-	vl.values_len = 1;
-	sstrncpy(vl.host, hostname_g, sizeof (vl.host));
-	sstrncpy(vl.plugin, "jobmetrics", sizeof (vl.plugin));
-	sstrncpy(vl.plugin_instance, "", sizeof (vl.plugin_instance));
-	sstrncpy(vl.type, "jm_fork_rate", sizeof (vl.type));
-	sstrncpy(vl.type_instance, "", sizeof (vl.type_instance));
-
-	plugin_dispatch_values(&vl);
-}
-#endif /* KERNEL_LINUX*/
-
-/* ------- additional functions for KERNEL_LINUX/HAVE_THREAD_INFO ------- */
+/* ------- additional functions for KERNEL_LINUX ------- 
+            Those are the same functions of processes.c
+            except jobmetrics_read_ctxt, has been added
+*/
 #if KERNEL_LINUX
 static int jobmetrics_read_tasks (int pid)
 {
@@ -851,7 +820,7 @@ static procstat_t *jobmetrics_read_io (int pid, procstat_t *ps)
 	}
 
 	return (ps);
-} /* procstat_t *ps_read_io */
+} /* procstat_t *jobmetrics_read_io */
 
 static procstat_t *jobmetrics_read_ctxt (int pid, procstat_t *ps)
 {
@@ -1147,53 +1116,9 @@ static char *jobmetrics_get_cmdline (pid_t pid, char *name, char *buf, size_t bu
 	}
 	return buf;
 } /* char *ps_get_cmdline (...) */
+#endif
 
-static int read_fork_rate ()
-{
-	FILE *proc_stat;
-	char buffer[1024];
-	value_t value;
-	_Bool value_valid = 0;
-
-	proc_stat = fopen ("/proc/stat", "r");
-	if (proc_stat == NULL)
-	{
-		char errbuf[1024];
-		ERROR ("jobmetrics plugin: fopen (/proc/stat) failed: %s",
-				sstrerror (errno, errbuf, sizeof (errbuf)));
-		return (-1);
-	}
-
-	while (fgets (buffer, sizeof (buffer), proc_stat) != NULL)
-	{
-		int status;
-		char *fields[3];
-		int fields_num;
-
-		fields_num = strsplit (buffer, fields,
-				STATIC_ARRAY_SIZE (fields));
-		if (fields_num != 2)
-			continue;
-
-		if (strcmp ("processes", fields[0]) != 0)
-			continue;
-
-		status = parse_value (fields[1], &value, DS_TYPE_DERIVE);
-		if (status == 0)
-			value_valid = 1;
-
-		break;
-	}
-	fclose(proc_stat);
-
-	if (!value_valid)
-		return (-1);
-
-	jobmetrics_submit_fork_rate (value.derive);
-	return (0);
-}
-#endif /*KERNEL_LINUX */
-
+/*read the name of the process*/
 static void jobmetrics_read_name(char *fl_name, char *name)
 {
     int ch, i;
@@ -1215,6 +1140,7 @@ static void jobmetrics_read_name(char *fl_name, char *name)
     }
 }
 
+/*read jobid and jobidx for a job*/
 static void jobmetrics_read_jobid(char *dir_name, char *jobId)
 {
     int ch, i;
@@ -1250,6 +1176,7 @@ static void jobmetrics_read_jobid(char *dir_name, char *jobId)
     }
 }
 
+/*check if a pid is a thread*/
 static int isthread(int pid)
 {
     FILE *fh;
@@ -1285,13 +1212,6 @@ static int jobmetrics_read (void)
 {
 
 #if KERNEL_LINUX
-	int running  = 0;
-	int sleeping = 0;
-	int zombies  = 0;
-	int stopped  = 0;
-	int paging   = 0;
-	int blocked  = 0;
-
     struct dirent *ent;
 	DIR           *proc;
 	int            pid;
@@ -1308,10 +1228,9 @@ static int jobmetrics_read (void)
 	FILE        *fp,*fh;
 	procstat_t  *ps_ptr;
 	
-	running = sleeping = zombies = stopped = paging = blocked = 0;
 	jobmetrics_list_reset ();
 
-	if ((proc = opendir ("/cgroup/cpuset/lsf/euler")) == NULL)
+    if ((proc = opendir ("/cgroup/cpuset/lsf/euler")) == NULL)
 	{
 		char errbuf[1024];
 		ERROR ("Cannot open `/cgroup/cpuset/lsf/euler': %s",
@@ -1325,8 +1244,9 @@ static int jobmetrics_read (void)
         {	
 	     if (strcmp (ent->d_name, "..") != 0 && strcmp (ent->d_name, ".") != 0)
          {
-            //get jobid
+            /*get jobid*/
 		    jobmetrics_read_jobid(ent->d_name, jobId);
+
 		    sprintf( filename , "%s/%s/%s", "/cgroup/cpuset/lsf/euler", ent->d_name,"tasks");	
 		    fp = fopen(filename,"r");
             if (fp == NULL ){
@@ -1334,102 +1254,86 @@ static int jobmetrics_read (void)
                      return -1;
             }
 
-            //if job is DONE
+            /*if job is DONE, remove from list and close the open file*/
             if ( fgets(line, 80, fp) == NULL){ 
                 jobmetrics_list_remove (jobId);
                 fclose(fp);
             }
-            else{
-            //read PIDs from a job	
-		    while(fgets(line, 80, fp) != NULL)
-             {
-                sscanf (line, "%d", &pid);
-           		sprintf (filename, "/proc/%i/stat", pid);
-                if ((fh = fopen (filename, "r")) == NULL)	
-                        	return -1;
-                //get process name
-			    name[0] = '\0';
-                if (fgets(line, sizeof(line), fh) != NULL)
-                	jobmetrics_read_name(line, name);
-                fclose(fh);
-
-                //if pid is not a thread than get some data from it
-                if ((strcmp(name,"res") != 0) && (!isdigit(name[0]))
-                        && (name[0] != '\0'))
+            else
+            {
+                /*read PIDs from a job, use LSF cgroups for this*/
+		        while(fgets(line, 80, fp) != NULL)
                 {
-                    //we exclude any LSF process
-     			    if ( !isthread(pid)) 
-			        {
+                    sscanf (line, "%d", &pid);
+           		    sprintf (filename, "/proc/%i/stat", pid);
+                    if ((fh = fopen (filename, "r")) == NULL)	
+                        	return -1;
 
-				        status = jobmetrics_read_process (pid, &ps, &state);
-                        if (status != 0 )
-				        {
-					        ERROR ("jobmetrics_read_process failed: %i", status);
-					        continue;
-				        }
+                    /*get process name*/
+			        name[0] = '\0';
+                    if (fgets(line, sizeof(line), fh) != NULL)
+                	    jobmetrics_read_name(line, name);
+                    fclose(fh);
+
+                    /*we exclude any LSF process*/
+                    if ((strcmp(name,"res") != 0) && (!isdigit(name[0]))
+                        && (name[0] != '\0'))
+                    {
+                        /*if pid is not a thread than get some data from it*/
+     			        if ( !isthread(pid)) 
+			            {
+                            status = jobmetrics_read_process (pid, &ps, &state);
+                            if (status != 0 )
+                            {
+                                ERROR ("jobmetrics_read_process failed: %i", status);
+                                continue;
+                            }
         
-				        sstrncpy (ps.jobId, jobId, sizeof(ps.jobId));
-                        sstrncpy (ps.name, name, sizeof(ps.name));
+                            sstrncpy (ps.jobId, jobId, sizeof(ps.jobId));
+                            sstrncpy (ps.name, name, sizeof(ps.name));
 
-				        pse.id       = pid;
-				        pse.age      = 0;
+                            pse.id       = pid;
+                            pse.age      = 0;
 
-				        pse.num_proc   = ps.num_proc;
-				        pse.num_lwp    = ps.num_lwp;
-				        pse.vmem_size  = ps.vmem_size;
-				        pse.vmem_rss   = ps.vmem_rss;
-				        pse.vmem_data  = ps.vmem_data;
-				        pse.vmem_code  = ps.vmem_code;
-				        pse.stack_size = ps.stack_size;
+                            pse.num_proc   = ps.num_proc;
+                            pse.num_lwp    = ps.num_lwp;
+                            pse.vmem_size  = ps.vmem_size;
+                            pse.vmem_rss   = ps.vmem_rss;
+                            pse.vmem_data  = ps.vmem_data;
+                            pse.vmem_code  = ps.vmem_code;
+                            pse.stack_size = ps.stack_size;
 
-                        pse.voluntary_ctxt_switches = ps.voluntary_ctxt_switches;
-                        pse.nonvoluntary_ctxt_switches = ps.nonvoluntary_ctxt_switches;
-                        
-				        pse.vmem_minflt = 0;
-				        pse.vmem_minflt_counter = ps.vmem_minflt_counter;
-				        pse.vmem_majflt = 0;
-				        pse.vmem_majflt_counter = ps.vmem_majflt_counter;
+                            pse.voluntary_ctxt_switches = ps.voluntary_ctxt_switches;
+                            pse.nonvoluntary_ctxt_switches = ps.nonvoluntary_ctxt_switches;
+                            
+                            pse.vmem_minflt = 0;
+                            pse.vmem_minflt_counter = ps.vmem_minflt_counter;
+                            pse.vmem_majflt = 0;
+                            pse.vmem_majflt_counter = ps.vmem_majflt_counter;
 
-				        pse.cpu_user = 0;
-				        pse.cpu_user_counter = ps.cpu_user_counter;
-				        pse.cpu_system = 0;
-				        pse.cpu_system_counter = ps.cpu_system_counter;
+                            pse.cpu_user = 0;
+                            pse.cpu_user_counter = ps.cpu_user_counter;
+                            pse.cpu_system = 0;
+                            pse.cpu_system_counter = ps.cpu_system_counter;
 
-				        pse.io_rchar = ps.io_rchar;
-				        pse.io_wchar = ps.io_wchar;
-				        pse.io_syscr = ps.io_syscr;
-				        pse.io_syscw = ps.io_syscw;
+                            pse.io_rchar = ps.io_rchar;
+                            pse.io_wchar = ps.io_wchar;
+                            pse.io_syscr = ps.io_syscr;
+                            pse.io_syscw = ps.io_syscw;
 
-				        switch (state)
-				        {
-					        case 'R': running++;  break;
-					        case 'S': sleeping++; break;
-					        case 'D': blocked++;  break;
-					        case 'Z': zombies++;  break;
-					        case 'T': stopped++;  break;
-					        case 'W': paging++;   break;
-				        }
-
-				        jobmetrics_list_add (ps.jobId, ps.name, 
-					        jobmetrics_get_cmdline (pid, ps.name, 
-					        cmdline, sizeof (cmdline)),&pse);
-			        }
-		        }
-	         }	
+                            jobmetrics_list_add (ps.jobId, ps.name, 
+                                jobmetrics_get_cmdline (pid, ps.name, 
+                                cmdline, sizeof (cmdline)),&pse);
+			            } /*end if(!isthread)*/
+		            }/*end if not LSF process*/
+	            }/*end while job has pid*/	
 		        fclose(fp);
-            }
-          }   
-	    }
-	}
+            }/*end if it is a running job*/
+          } /*end if .. . dir*/  
+	    }/*end if not dir*/
+	}/*end while have some file/dir inside the current dir*/
 
 	closedir (proc);
-
-	jobmetrics_submit_state ("running",  running);
-	jobmetrics_submit_state ("sleeping", sleeping);
-	jobmetrics_submit_state ("zombies",  zombies);
-	jobmetrics_submit_state ("stopped",  stopped);
-	jobmetrics_submit_state ("paging",   paging);
-	jobmetrics_submit_state ("blocked",  blocked);
 
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 	{
@@ -1437,7 +1341,6 @@ static int jobmetrics_read (void)
         jobmetrics_submit_proc_sublist (ps_ptr);
 	}
 
-	read_fork_rate();
 /* #endif KERNEL_LINUX */
 #endif 
 
