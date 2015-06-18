@@ -5637,8 +5637,9 @@ AC_PLUGIN([iptables],    [$with_libiptc],      [IPTables rule counters])
 AC_PLUGIN([ipvs],        [$plugin_ipvs],       [IPVS connection statistics])
 AC_PLUGIN([irq],         [$plugin_irq],        [IRQ statistics])
 AC_PLUGIN([java],        [$with_java],         [Embed the Java Virtual Machine])
-AC_PLUGIN([jobstatus],   [$with_liblsf],       [Lsf job status])
 AC_PLUGIN([jobmetrics],  [$plugin_jobmetrics], [Lsf job metrics])
+AC_PLUGIN([jobresources],[$with_liblsf],       [Lsf job resources])
+AC_PLUGIN([jobstatus],   [$with_liblsf],       [Lsf job status])
 AC_PLUGIN([load],        [$plugin_load],       [System load])
 AC_PLUGIN([logfile],     [yes],                [File logging plugin])
 AC_PLUGIN([log_logstash], [$plugin_log_logstash], [Logstash json_event compatible logging])
@@ -6019,6 +6020,8 @@ Configuration:
     ipvs  . . . . . . . . $enable_ipvs
     irq . . . . . . . . . $enable_irq
     java  . . . . . . . . $enable_java
+    jobmetrics  . . . . . $enable_jobmetrics
+    jobresources  . . . . $enable_jobresources
     jobstatus . . . . . . $enable_jobstatus
     load  . . . . . . . . $enable_load
     logfile . . . . . . . $enable_logfile
