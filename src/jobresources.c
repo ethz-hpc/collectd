@@ -89,17 +89,17 @@ static void jobresources_submit (jobresources_t *js)
     plugin_dispatch_values (&vl);
 }
 
-static void jobresources_list_add (jobstatus_t *js)
+static void jobresources_list_add (jobresources_t *js)
 {
-	jobstatus_t *new;
+	jobresources_t *new;
 
-	new = (jobstatus_t *) malloc (sizeof(jobstatus_t));
+	new = (jobresources_t *) malloc (sizeof(jobresources_t));
     if (new == NULL)
          return;
 
-	memset (new, 0, sizeof (jobstatus_t));
+	memset (new, 0, sizeof (jobresources_t));
 
-    sstrncpy(new->name, js->jobId, sizeof(new->name));
+    sstrncpy(new->jobId, js->jobId, sizeof(new->jobId));
     new->ncores = js->ncores;
     new->runtime = js->runtime;
     new->memory = js->memory;
@@ -111,9 +111,9 @@ static void jobresources_list_add (jobstatus_t *js)
 	}	
 	else{
 
-		jobstatus_t *ps = list_head_g;
-       	jobstatus_t *last_ps;
-		while(ps != NULL && strcmp(ps->name,js->name) != 0)
+		jobresources_t *ps = list_head_g;
+       	jobresources_t *last_ps;
+		while(ps != NULL && strcmp(ps->jobId,js->jobId) != 0)
 		{
 			last_ps = ps;
 			ps = ps->next;			
@@ -123,6 +123,9 @@ static void jobresources_list_add (jobstatus_t *js)
 			last_ps->next = new;
 		}	
 		else{
+            ps->ncores = new->ncores;
+            ps->memory = new->memory;
+            ps->scratch = ps->scratch;
             ps->runtime = new->runtime;
 		}
 	}	
@@ -214,7 +217,10 @@ static jobresources_t* read_single_job (struct jobInfoEnt *job, jobresources_t *
     if (job == NULL)
         return NULL;
 
-        sstrncpy(js->jobId, job->jobId, sizeof(js->jobId));
+    char jobId[JOB_NAME_LEN];
+
+    ssnprintf (jobId, sizeof (jobId), "%lli", job->jobId); 
+    sstrncpy(js->jobId, jobId, sizeof(js->jobId));
 
 	//TODO: RUN_JOB define can't be used, using for now the value
 	if (job->status == 4){
@@ -325,11 +331,11 @@ static int jobresources_read (void)
    	int i;	
 
 	for(i = 0; i < jInfoH->numJobs; i++) {
-        	job = lsb_readjobinfo(NULL);
+        job = lsb_readjobinfo(NULL);
 
-        	if(job == NULL){
-			ERROR ("jobstatus plugin: Could not read job information");
-			return (-1);
+        if(job == NULL){
+			    ERROR ("jobstatus plugin: Could not read job information");
+			    return (-1);
 		}
 
 		js = (jobresources_t *) malloc (sizeof(jobresources_t));
