@@ -47,7 +47,7 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
 typedef struct  jobresources
 {
-    char jodId[JOB_NAME_LEN];
+    char jobId[JOB_NAME_LEN];
 	unsigned long ncores;
 	unsigned long runtime;
     unsigned long memory;
@@ -57,7 +57,7 @@ typedef struct  jobresources
 
 static jobresources_t *list_head_g = NULL;
 
-static void jobresources_submit (jobstatus_t *js)
+static void jobresources_submit (jobresources_t *js)
 {
     value_t values[2];
     value_list_t vl = VALUE_LIST_INIT;
@@ -130,7 +130,7 @@ static void jobresources_list_add (jobstatus_t *js)
 
 static void jobresources_list_reset (void)
 {
-    jobstatus_t *ps = list_head_g;
+    jobresources_t *ps = list_head_g;
     
     while( list_head_g!= NULL) {
             ps = list_head_g;
@@ -214,7 +214,7 @@ static jobresources_t* read_single_job (struct jobInfoEnt *job, jobresources_t *
     if (job == NULL)
         return NULL;
 
-        sstrncpy(js->jobId, job->JobId, sizeof(js->jobId));
+        sstrncpy(js->jobId, job->jobId, sizeof(js->jobId));
 
 	//TODO: RUN_JOB define can't be used, using for now the value
 	if (job->status == 4){
