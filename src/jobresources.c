@@ -38,7 +38,7 @@ static lsf_conf_file_t *lsf_conf = NULL;
 
 static const char *config_keys[] = 
 {
-	"LSF_SERVERDIR",
+	"LSF_ENVDIR",
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -240,7 +240,7 @@ static int add_lsf_conf(const char *key, const char *value)
 	lsf_conf = (lsf_conf_file_t *) malloc (sizeof(lsf_conf_file_t));
     memset (lsf_conf, '\0', sizeof (lsf_conf_file_t));
 
- 	if ((strcasecmp (key, "LSF_SERVERDIR") == 0))
+ 	if ((strcasecmp (key, "LSF_ENVDIR") == 0))
     {
 	    lsf_conf->serverdir = strdup(value);
             if ( lsf_conf->serverdir == NULL)
