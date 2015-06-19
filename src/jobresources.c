@@ -184,7 +184,7 @@ static int get_rr_mem(char *rr) {
 static int get_rr_scratch(char *rr) {
         char match[] = "scratch=";      /* prefix to search                         */
         char *scr = NULL;           /* scratch buffer-pointer                   */
-        int rscr = -1;              /* return value -> requested scratch         */
+        int rscr = 0;              /* return value -> requested scratch         */
         int xoff = 0;               /* offset of first integer value after scratch= */
         int slen = strlen(match);
         int rlen = strlen(rr);
@@ -267,7 +267,7 @@ static int jobresources_config (const char *key, const char *value)
     		return (-1);
   	}
 
-	if ((strcasecmp (key, "LSF_SERVERDIR") == 0))
+	if ((strcasecmp (key, "LSF_ENVDIR") == 0))
 	{
 		if (fields_num != 1)
                 {
@@ -289,7 +289,7 @@ static int init(void)
 	
 	if (lsb_init(NULL) < 0)
 	{
-		ERROR("Jobstatus plugin: Initialization problems");
+		ERROR("Jobresources plugin: Initialization problems");
 		return (-1);
 	}
 
@@ -350,8 +350,8 @@ static int jobresources_read (void)
             js->memory = 0;
             js->scratch = 0;
 		}
-        
-		jobresources_list_add(js);
+        else 
+		    jobresources_list_add(js);
 	}		
 
 	for (js=list_head_g; js != NULL; js=js->next)
