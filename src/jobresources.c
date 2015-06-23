@@ -122,6 +122,7 @@ static void jobresources_list_add (jobresources_t *js)
 		if (ps == NULL){
 			last_ps->next = new;
 		}	
+        /*Just in case someone does a bmod*/
 		else{
             ps->ncores = new->ncores;
             ps->memory = new->memory;

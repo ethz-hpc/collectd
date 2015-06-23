@@ -38,7 +38,7 @@ static lsf_conf_file_t *lsf_conf = NULL;
 
 static const char *config_keys[] = 
 {
-	"LSF_SERVERDIR",
+	"LSF_ENVDIR",
 };
 
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
@@ -206,7 +206,7 @@ static int jobstatus_config (const char *key, const char *value)
     		return (-1);
   	}
 
-	if ((strcasecmp (key, "LSF_SERVERDIR") == 0))
+	if ((strcasecmp (key, "LSF_ENVDIR") == 0))
 	{
 		if (fields_num != 1)
                 {
