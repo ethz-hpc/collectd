@@ -516,8 +516,8 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
     plugin_dispatch_values (&vl);    
 
 	sstrncpy (vl.type, "jm_cputime", sizeof (vl.type));
-	vl.values[0].derive = ps->cpu_user_counter;
-	vl.values[1].derive = ps->cpu_system_counter;
+	vl.values[0].derive = ps->cpu_user_counter/sysconf(_SC_CLK_TCK);
+	vl.values[1].derive = ps->cpu_system_counter/sysconf(_SC_CLK_TCK);
 	vl.values_len = 2;
 	plugin_dispatch_values (&vl);
 
@@ -966,9 +966,9 @@ int jobmetrics_read_process (int pid, procstat_t *ps, char *state)
 			: stack_ptr - stack_start;
 	}
 
-	/* Convert jiffies to useconds */
-	cpu_user_counter   = cpu_user_counter   * 1000000 / CONFIG_HZ;
-	cpu_system_counter = cpu_system_counter * 1000000 / CONFIG_HZ;
+	/* Convert jiffies to seconds */
+	cpu_user_counter   = cpu_user_counter   / CONFIG_HZ;
+	cpu_system_counter = cpu_system_counter / CONFIG_HZ;
 	vmem_rss = vmem_rss * pagesize_g;
 
 	if ( (jobmetrics_read_vmem(pid, ps)) == NULL)
