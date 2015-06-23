@@ -479,14 +479,6 @@ jobmetrics_la_LIBADD += -lkvm
 endif
 endif
 
-if BUILD_PLUGIN_JOBRESOURCES
-pkglib_LTLIBRARIES += jobsresources.la
-jobresources_la_SOURCES = jobsresources.c
-jobresources_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBLSF_CPPFLAGS)
-jobsresources_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(LIBLSF_LDFLAGS)
-jobsresources_la_LIBADD = $(LIBLSF_LIBS)
-endif
-
 if BUILD_PLUGIN_JOBSTATUS
 pkglib_LTLIBRARIES += jobstatus.la
 jobstatus_la_SOURCES = jobstatus.c 
