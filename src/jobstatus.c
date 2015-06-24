@@ -106,6 +106,7 @@ static void jobstatus_submit_user (jobstatus_t *js)
     vl.values[0].gauge = js->ndep;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
+
 }
 
 static void jobstatus_submit_resources (jobresources_t *js)
@@ -119,22 +120,22 @@ static void jobstatus_submit_resources (jobresources_t *js)
     sstrncpy (vl.plugin, "job", sizeof (vl.plugin));
     sstrncpy (vl.plugin_instance, js->jobId, sizeof (vl.plugin_instance));
 
-        sstrncpy (vl.type, "js_ncores", sizeof (vl.type));
+    sstrncpy (vl.type, "js_ncores", sizeof (vl.type));
     vl.values[0].gauge = js->ncores;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
-        sstrncpy (vl.type, "js_runtime", sizeof (vl.type));
+    sstrncpy (vl.type, "js_runtime", sizeof (vl.type));
     vl.values[0].gauge = js->runtime;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
-        sstrncpy (vl.type, "js_memory", sizeof (vl.type));
+    sstrncpy (vl.type, "js_memory", sizeof (vl.type));
     vl.values[0].gauge = js->memory;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
-        sstrncpy (vl.type, "js_scratch", sizeof (vl.type));
+    sstrncpy (vl.type, "js_scratch", sizeof (vl.type));
     vl.values[0].gauge = js->scratch;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
@@ -185,50 +186,46 @@ static void jobstatus_list_add_user (jobstatus_t *js)
 	}	
 }
 
-static void jobresources_list_add_res (jobresources_t *js)
+static void jobstatus_list_add_res (jobresources_t *js)
 {
-        jobresources_t *new;
+    jobresources_t *new;
 
-        new = (jobresources_t *) malloc (sizeof(jobresources_t));
+    new = (jobresources_t *) malloc (sizeof(jobresources_t));
     if (new == NULL)
          return;
 
-        memset (new, 0, sizeof (jobresources_t));
+    memset (new, 0, sizeof (jobresources_t));
 
     sstrncpy(new->jobId, js->jobId, sizeof(new->jobId));
     new->ncores = js->ncores;
     new->runtime = js->runtime;
     new->memory = js->memory;
     new->scratch = js->scratch;
-        new->next = NULL;
+    new->next = NULL;
 
-        if (list_head_res_g == NULL){
-                list_head_res_g = new;
+    if (list_head_res_g == NULL){
+        list_head_res_g = new;
+    }
+    else{
+
+            jobresources_t *ps = list_head_res_g;
+            jobresources_t *last_ps;
+            while(ps != NULL && strcmp(ps->jobId,js->jobId) != 0)
+            {
+                last_ps = ps;
+                ps = ps->next;
+            }
+            if (ps == NULL){
+                last_ps->next = new;
+            }
+            else{
+                ps->ncores = new->ncores;
+                ps->memory = new->memory;
+                ps->scratch = new->scratch;
+                ps->runtime = new->runtime;
+            }
         }
-        else{
-
-                jobresources_t *ps = list_head_res_g;
-                jobresources_t *last_ps;
-                while(ps != NULL && strcmp(ps->jobId,js->jobId) != 0)
-                {
-                        last_ps = ps;
-                        ps = ps->next;
-                }
-
-                if (ps == NULL){
-                        last_ps->next = new;
-
-                }
-                else{
-            ps->ncores = new->ncores;
-            ps->memory = new->memory;
-            ps->scratch = new->scratch;
-            ps->runtime = new->runtime;
-                }
-        }
-
 }
-
 
 static void jobstatus_list_reset (void)
 {
@@ -273,7 +270,7 @@ static int get_rr_mem(char *rr) {
                         break;
                 }
         }
-        if(xoff) { /* hit is between i <-> xoff */
+        if(xoff) { 
                 if( (scr = malloc( 1+i-xoff )) != NULL &&
                        (snprintf(scr, 1+i-xoff, "%s", &rr[xoff])) > 0 ) {
                         rmem = atoi(scr);
@@ -308,7 +305,7 @@ static int get_rr_scratch(char *rr) {
                 }
         }
 
-        if(xoff) { /* hit is between i <-> xoff */
+        if(xoff) { 
                 if( (scr = malloc( 1+i-xoff )) != NULL &&
                        (snprintf(scr, 1+i-xoff, "%s", &rr[xoff])) > 0 ) {
                         rscr = atoi(scr);
@@ -344,7 +341,6 @@ static jobstatus_t* read_single_job_user (struct jobInfoEnt *job, jobstatus_t *j
     }
 
 	js->next = NULL;
-
     return js;
 }
 
@@ -355,20 +351,22 @@ static jobresources_t* read_single_job_res (struct jobInfoEnt *job, jobresources
 
     char jobId[JOB_NAME_LEN];
 
-    ssnprintf (jobId, sizeof (jobId), "%lli", job->jobId);
-    sstrncpy(js->jobId, jobId, sizeof(js->jobId));
-
     if (job->status == 4){
-                js->ncores = job->submit.numProcessors;
+	    if(LSB_ARRAY_IDX(job->jobId) > 0){
+		    ssnprintf (jobId, sizeof (jobId), "%d.%d", LSB_ARRAY_JOBID(job->jobId),LSB_ARRAY_IDX(job->jobId));
+	    } 
+	    else
+    		ssnprintf (jobId, sizeof (jobId), "%lli", job->jobId);
+    	sstrncpy(js->jobId, jobId, sizeof(js->jobId));
+        js->ncores = job->submit.numProcessors;
         js->runtime = job->jRusageUpdateTime - job->startTime;
         js->memory = get_rr_mem(job->submit.resReq);
         js->scratch = get_rr_scratch(job->submit.resReq);
-    }
-	else
-		js = NULL;	   	
-
         js->next = NULL;
-
+    }
+	else{
+		return NULL;	   	
+	}
 
     return js;
 }
@@ -448,8 +446,6 @@ static int jobstatus_read (void)
 	struct jobInfoHead *jInfoH;
 	struct jobInfoEnt *job;	
 
-	//Otherwise LSF can't read the configuration files
-	putenv(lsf_conf->serverdir);
 
     if (lsb_init(NULL) < 0)
 	{
@@ -487,8 +483,11 @@ static int jobstatus_read (void)
 			js_user->ncores_pend = -1;
             		js_user->ndep = -1;
 		}
-        
-        	if (job->status == 4){
+		else{
+			jobstatus_list_add_user(js_user);
+		} 
+
+       	if (job->status == 4){
             		struct jobDepRequest jobdepReq;
             		jobdepReq.jobId = job->jobId;
             		jobdepReq.options = QUERY_DEPEND_UNSATISFIED;
@@ -497,11 +496,11 @@ static int jobstatus_read (void)
         	}
         	else
             		js_user->ndep = 0;
-		
+	
 		js_res = (jobresources_t *) malloc (sizeof(jobresources_t));
                 if (js_res == NULL)
                         return (-1);
-	
+
 		if ( read_single_job_res(job, js_res) == NULL )
                 {
                         memset(js_res->jobId,' ',sizeof(js_res->jobId));
@@ -510,11 +509,13 @@ static int jobstatus_read (void)
                 	js_res->memory = 0;
                         js_res->scratch = 0;
                 }
-		
-		jobresources_list_add_res(js_res);
-		jobstatus_list_add_user(js_user);
+		else{	
+			jobstatus_list_add_res(js_res);
+		}
+
 	}		
 
+	lsb_closejobinfo();
 	for (js_user=list_head_g; js_user != NULL; js_user=js_user->next)
 		jobstatus_submit_user(js_user);
 
