@@ -177,6 +177,26 @@ static void if_submit (const char *dev, const char *type,
 	plugin_dispatch_values (&vl);
 } /* void if_submit */
 
+static void if_submit_rate(const char *dev, const char *type, derive_t rate)
+{
+    value_t values[1];
+    value_list_t vl = VALUE_LIST_INIT;
+
+    if (ignorelist_match (ignorelist, dev) != 0)
+        return;
+
+    values[0].derive = rate;
+
+    vl.values = values;
+    vl.values_len = 1;
+    sstrncpy (vl.host, hostname_g, sizeof (vl.host));
+    sstrncpy (vl.plugin, "interface", sizeof (vl.plugin));
+    sstrncpy (vl.plugin_instance, dev, sizeof (vl.plugin_instance));
+    sstrncpy (vl.type, type, sizeof (vl.type));
+
+    plugin_dispatch_values (&vl);
+}
+
 static int interface_read (void)
 {
 #if HAVE_GETIFADDRS
@@ -234,7 +254,7 @@ static int interface_read (void)
 #elif KERNEL_LINUX
 	FILE *fh;
 	char buffer[1024];
-	derive_t incoming, outgoing;
+	derive_t incoming, outgoing, rate;
 	char *device;
 
 	char *dummy;
@@ -251,6 +271,7 @@ static int interface_read (void)
 
 	while (fgets (buffer, 1024, fh) != NULL)
 	{
+    
 		if (!(dummy = strchr(buffer, ':')))
 			continue;
 		dummy[0] = '\0';
@@ -268,20 +289,68 @@ static int interface_read (void)
 		if (numfields < 11)
 			continue;
 
-		incoming = atoll (fields[0]);
-		outgoing = atoll (fields[8]);
-		if_submit (device, "if_octets", incoming, outgoing);
+        if (strcmp(device, "ib0") != 0 || strcmp(device, "ib1") != 0 ){
+    
+            incoming = atoll (fields[0]);
+            outgoing = atoll (fields[8]);
+            if_submit (device, "if_octets", incoming, outgoing);
 
-		incoming = atoll (fields[1]);
-		outgoing = atoll (fields[9]);
-		if_submit (device, "if_packets", incoming, outgoing);
+            incoming = atoll (fields[1]);
+            outgoing = atoll (fields[9]);
+            if_submit (device, "if_packets", incoming, outgoing);
 
-		incoming = atoll (fields[2]);
-		outgoing = atoll (fields[10]);
-		if_submit (device, "if_errors", incoming, outgoing);
-	}
+            incoming = atoll (fields[2]);
+            outgoing = atoll (fields[10]);
+            if_submit (device, "if_errors", incoming, outgoing);
+        }
+	}    
 
 	fclose (fh);
+
+    /*For infiniband stuff, we look at /sys/class/infiniband
+     and not the default for other interfaces
+    TODO: We do it only for port 1, need to do it for other ports
+    */
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_data", "r")) == NULL)
+        if (fgets (buffer, 1024, fh) != NULL)
+                incoming = atoll (buffer);
+    fclose (fh);
+
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_data", "r")) == NULL)
+        if (fgets (buffer, 1024, fh) != NULL)
+                outgoing = atoll (buffer);
+    fclose (fh);
+    if_submit ("ib0", "if_octets", incoming, outgoing);
+ 
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_errors", "r")) == NULL)
+        if (fgets (buffer, 1024, fh) != NULL)
+                incoming = atoll (buffer);
+    fclose (fh);
+
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_errors", "r")) == NULL)
+        if (fgets (buffer, 1024, fh) != NULL)
+                outgoing = atoll (buffer);
+    fclose (fh);
+    if_submit ("ib0", "if_errors", incoming, outgoing);
+
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_packets", "r")) == NULL)
+        if (fgets (buffer, 1024, fh) != NULL)
+                incoming = atoll (buffer);
+    fclose (fh);
+
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_packets", "r")) == NULL)
+        if (fgets (buffer, 1024, fh) != NULL)
+                outgoing = atoll (buffer);
+    fclose (fh);
+    if_submit ("ib0", "if_packets", incoming, outgoing);
+
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/rate", "r")) == NULL)
+        if (fgets (buffer, 3, fh) != NULL)
+                rate = atoll (buffer);        
+    fclose (fh);
+    if_submit_rate ("ib0", "if_rate", rate);
+
+
 /* #endif KERNEL_LINUX */
 
 #elif HAVE_LIBKSTAT
