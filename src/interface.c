@@ -261,6 +261,8 @@ static int interface_read (void)
 	char *fields[16];
 	int numfields;
 
+    incoming = outgoing = rate = 0;
+
 	if ((fh = fopen ("/proc/net/dev", "r")) == NULL)
 	{
 		char errbuf[1024];
