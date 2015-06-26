@@ -50,22 +50,24 @@ static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 typedef struct  jobstatus
 {
 	char name[JOB_NAME_LEN];
-	unsigned long nrun;
-	unsigned long npend;
-	unsigned long ncores_run;
 	unsigned long ncores_pend;
+	unsigned long ncores_run;
     unsigned long ndep;
+	unsigned long npend;
+	unsigned long nrun;
 	struct jobstatus *next;
 } jobstatus_t;
 
 typedef struct  jobresources
 {
     char jobId[JOB_NAME_LEN];
-        unsigned long ncores;
-        unsigned long runtime;
+    int reasons;
+    int subreasons; 
+    unsigned long ncores;
+    unsigned long runtime;
     unsigned long memory;
     unsigned long scratch;
-        struct jobresources *next;
+    struct jobresources *next;
 } jobresources_t;
 
 static jobstatus_t 	*list_head_g = NULL;
@@ -140,6 +142,16 @@ static void jobstatus_submit_resources (jobresources_t *js)
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
+    sstrncpy (vl.type, "js_reasons", sizeof (vl.type));
+    vl.values[0].gauge = js->reasons;
+    vl.values_len = 1;
+    plugin_dispatch_values (&vl);
+
+    sstrncpy (vl.type, "js_subreasons", sizeof (vl.type));
+    vl.values[0].gauge = js->subreasons;
+    vl.values_len = 1;
+    plugin_dispatch_values (&vl);
+
 }
 
 static void jobstatus_list_add_user (jobstatus_t *js)
@@ -201,6 +213,8 @@ static void jobstatus_list_add_res (jobresources_t *js)
     new->runtime = js->runtime;
     new->memory = js->memory;
     new->scratch = js->scratch;
+    new->reasons = js->reasons;
+    new->subreasons = js->subreasons;
     new->next = NULL;
 
     if (list_head_res_g == NULL){
@@ -223,6 +237,8 @@ static void jobstatus_list_add_res (jobresources_t *js)
                 ps->memory = new->memory;
                 ps->scratch = new->scratch;
                 ps->runtime = new->runtime;
+                ps->reasons = new->reasons;
+                ps->subreasons = new->subreasons;
             }
         }
 }
@@ -362,10 +378,24 @@ static jobresources_t* read_single_job_res (struct jobInfoEnt *job, jobresources
         js->runtime = job->jRusageUpdateTime - job->startTime;
         js->memory = get_rr_mem(job->submit.resReq);
         js->scratch = get_rr_scratch(job->submit.resReq);
+        js->reasons = 0;
+        js->subreasons = 0;
         js->next = NULL;
     }
 	else{
-		return NULL;	   	
+        if(LSB_ARRAY_IDX(job->jobId) > 0){
+            ssnprintf (jobId, sizeof (jobId), "%d.%d", LSB_ARRAY_JOBID(job->jobId),LSB_ARRAY_IDX(job->jobId));
+        }
+        else
+            ssnprintf (jobId, sizeof (jobId), "%lli", job->jobId);
+        sstrncpy(js->jobId, jobId, sizeof(js->jobId));
+        js->ncores = job->submit.numProcessors;
+        js->runtime = 0;
+        js->memory = get_rr_mem(job->submit.resReq);
+        js->scratch = get_rr_scratch(job->submit.resReq);
+        js->reasons = job->reasons;
+        js->subreasons = job->subreasons;
+        js->next = NULL;
 	}
 
     return js;
@@ -481,7 +511,7 @@ static int jobstatus_read (void)
 			js_user->npend = -1;
 			js_user->ncores_run = -1;
 			js_user->ncores_pend = -1;
-            		js_user->ndep = -1;
+            js_user->ndep = -1;
 		}
 		else{
 			jobstatus_list_add_user(js_user);
@@ -503,11 +533,13 @@ static int jobstatus_read (void)
 
 		if ( read_single_job_res(job, js_res) == NULL )
                 {
-                        memset(js_res->jobId,' ',sizeof(js_res->jobId));
-                        js_res->ncores = 0;
+                    memset(js_res->jobId,' ',sizeof(js_res->jobId));
+                    js_res->ncores = 0;
                 	js_res->runtime = 0;
                 	js_res->memory = 0;
-                        js_res->scratch = 0;
+                    js_res->scratch = 0;
+                    js_res->reasons = 0;
+                    js_res->subreasons = 0;
                 }
 		else{	
 			jobstatus_list_add_res(js_res);
