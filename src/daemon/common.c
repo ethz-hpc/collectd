@@ -312,44 +312,51 @@ int strsplit (char *string, char **fields, size_t size)
 	return ((int) i);
 }
 
-int strjoin (char *dst, size_t dst_len,
+int strjoin (char *buffer, size_t buffer_size,
 		char **fields, size_t fields_num,
 		const char *sep)
 {
-	size_t field_len;
+	size_t avail;
+	char *ptr;
 	size_t sep_len;
-	int i;
+	size_t i;
 
-	memset (dst, '\0', dst_len);
-
-	if (fields_num <= 0)
+	if ((buffer_size < 1) || (fields_num <= 0))
 		return (-1);
+
+	memset (buffer, 0, buffer_size);
+	ptr = buffer;
+	avail = buffer_size - 1;
 
 	sep_len = 0;
 	if (sep != NULL)
 		sep_len = strlen (sep);
 
-	for (i = 0; i < (int)fields_num; i++)
+	for (i = 0; i < fields_num; i++)
 	{
+		size_t field_len;
+
 		if ((i > 0) && (sep_len > 0))
 		{
-			if (dst_len <= sep_len)
+			if (avail < sep_len)
 				return (-1);
 
-			strncat (dst, sep, dst_len);
-			dst_len -= sep_len;
+			memcpy (ptr, sep, sep_len);
+			ptr += sep_len;
+			avail -= sep_len;
 		}
 
 		field_len = strlen (fields[i]);
-
-		if (dst_len <= field_len)
+		if (avail < field_len)
 			return (-1);
 
-		strncat (dst, fields[i], dst_len);
-		dst_len -= field_len;
+		memcpy (ptr, fields[i], field_len);
+		ptr += field_len;
+		avail -= field_len;
 	}
 
-	return (strlen (dst));
+	assert (buffer[buffer_size - 1] == 0);
+	return (strlen (buffer));
 }
 
 int strsubstitute (char *str, char c_from, char c_to)
@@ -484,8 +491,8 @@ size_t strstripnewline (char *buffer)
 
 int escape_slashes (char *buffer, size_t buffer_size)
 {
-	int i;
 	size_t buffer_len;
+	size_t i;
 
 	buffer_len = strlen (buffer);
 
@@ -939,7 +946,7 @@ int format_values (char *ret, size_t ret_len, /* {{{ */
 {
         size_t offset = 0;
         int status;
-        int i;
+        size_t i;
         gauge_t *rates = NULL;
 
         assert (0 == strcmp (ds->type, vl->type));
@@ -1142,14 +1149,15 @@ int parse_value (const char *value_orig, value_t *ret_value, int ds_type)
 
 int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 {
-	int i;
+	size_t i;
 	char *dummy;
 	char *ptr;
 	char *saveptr;
 
-	i = -1;
+	i = 0;
 	dummy = buffer;
 	saveptr = NULL;
+	vl->time = 0;
 	while ((ptr = strtok_r (dummy, ":", &saveptr)) != NULL)
 	{
 		dummy = NULL;
@@ -1157,11 +1165,11 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 		if (i >= vl->values_len)
 		{
 			/* Make sure i is invalid. */
-			i = vl->values_len + 1;
+			i = 0;
 			break;
 		}
 
-		if (i == -1)
+		if (vl->time == 0)
 		{
 			if (strcmp ("N", ptr) == 0)
 				vl->time = cdtime ();
@@ -1180,19 +1188,19 @@ int parse_values (char *buffer, value_list_t *vl, const data_set_t *ds)
 
 				vl->time = DOUBLE_TO_CDTIME_T (tmp);
 			}
+
+			continue;
 		}
-		else
-		{
-			if ((strcmp ("U", ptr) == 0) && (ds->ds[i].type == DS_TYPE_GAUGE))
-				vl->values[i].gauge = NAN;
-			else if (0 != parse_value (ptr, &vl->values[i], ds->ds[i].type))
-				return -1;
-		}
+
+		if ((strcmp ("U", ptr) == 0) && (ds->ds[i].type == DS_TYPE_GAUGE))
+			vl->values[i].gauge = NAN;
+		else if (0 != parse_value (ptr, &vl->values[i], ds->ds[i].type))
+			return -1;
 
 		i++;
 	} /* while (strtok_r) */
 
-	if ((ptr != NULL) || (i != vl->values_len))
+	if ((ptr != NULL) || (i == 0))
 		return (-1);
 	return (0);
 } /* int parse_values */
