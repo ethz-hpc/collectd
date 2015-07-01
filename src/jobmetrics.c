@@ -774,7 +774,7 @@ static procstat_t *jobmetrics_read_io (int pid, procstat_t *ps)
 	char filename[64];
 
 	char *fields[8];
-	int numfields;
+	int numfields=0;
 
 	ssnprintf (filename, sizeof (filename), "/proc/%i/io", pid);
 	if ((fh = fopen (filename, "r")) == NULL)
@@ -829,7 +829,6 @@ static procstat_t *jobmetrics_read_ctxt (int pid, procstat_t *ps)
     char  buffer[1024];
 
     char *fields[64];
-    int  numfields;
 
     ssnprintf (filename, sizeof (filename), "/proc/%i/status", pid);
     if ((fh = fopen (filename, "r")) == NULL)
@@ -838,11 +837,11 @@ static procstat_t *jobmetrics_read_ctxt (int pid, procstat_t *ps)
     {
 
        if (strncmp (buffer, "voluntary_ctxt_switches", 23) == 0){
-          numfields = strsplit (buffer, fields,STATIC_ARRAY_SIZE (fields));
+          strsplit (buffer, fields,STATIC_ARRAY_SIZE (fields));
           ps->voluntary_ctxt_switches = atoll(fields[1]);
        }
        if (strncmp (buffer, "nonvoluntary_ctxt_switches", 26) == 0){
-          numfields = strsplit (buffer, fields,STATIC_ARRAY_SIZE (fields));
+          strsplit (buffer, fields,STATIC_ARRAY_SIZE (fields));
           ps->nonvoluntary_ctxt_switches = atoll(fields[1]);
        }
     }
@@ -1184,7 +1183,6 @@ static int isthread(int pid)
     char  buffer[1024];
 
     char *fields[64];
-    int  numfields;
 
     ssnprintf (filename, sizeof (filename), "/proc/%i/status", pid);
     if ((fh = fopen (filename, "r")) == NULL)
@@ -1195,7 +1193,7 @@ static int isthread(int pid)
        if (strncmp (buffer, "Tgid", 4) != 0)
                    continue;
         
-       numfields = strsplit (buffer, fields,STATIC_ARRAY_SIZE (fields)); 
+       strsplit (buffer, fields,STATIC_ARRAY_SIZE (fields)); 
        break; 
     }
     fclose (fh);
