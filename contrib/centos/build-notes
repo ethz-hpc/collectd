@@ -1,0 +1,27 @@
+USED packages
+
+ONLY IF BUILD ALL PLUGINS
+yum install librabbitmq-devel yajl-devel libdbi-devel libpcap-devel ganglia-devel OpenIPMI-devel iptables-devel java-devel jpackage-utils lvm2-devel libmemcached-devel libmodbus-devel  mysql-devel libmnl-devel iproute-devel libnotify-devel libesmtp-devel nut-devel openldap-devel protobuf-c-devel liboping-devel postgresql-devel hiredis-devel rrdtool-devel lm_sensors-devel libatasmart-devel net-snmp-devel varnish-libs-devel libvirt-devel
+
+
+NORMALLY ONLY THIS
+yum install spectool
+yum install lm_sensors-devel rrdtool-devel libpcap-devel net-snmp-devel libstatgrab-devel libxml2-devel libiptcdata-devel curl-devel libidn-devel mysql-devel
+yum -y install perl-ExtUtils-CBuilder perl-ExtUtils-MakeMaker
+yum -y install libi2c-dev
+yum install curl-devel
+yum install httpd php php-rrdtool 
+yum install perl
+yum install perl-CGI
+yum install perl-JSON
+yum install perl-RRDs
+yum install perl-RRD
+yum install perl-Config
+yum install perl-rrdtool
+
+used command
+rpmbuild -ba --target=$(uname -m) rpmbuild/SPECS/collectd.spec
+
+HELP:
+https://github.com/simonmcc/rpmbuild-collectd/blob/master/build.sh
+https://github.com/collectd/collectd/blob/master/contrib/redhat/collectd.spec
