@@ -1,8 +1,15 @@
+1- generate src
+git clone collectd 
+make dist
+mkdir $DIR/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+mv *.bz2 $DIR/rpmbuild/SOURCES/
+
+2- Install packages 
+
 USED packages
 
 ONLY IF BUILD ALL PLUGINS
 yum install librabbitmq-devel yajl-devel libdbi-devel libpcap-devel ganglia-devel OpenIPMI-devel iptables-devel java-devel jpackage-utils lvm2-devel libmemcached-devel libmodbus-devel  mysql-devel libmnl-devel iproute-devel libnotify-devel libesmtp-devel nut-devel openldap-devel protobuf-c-devel liboping-devel postgresql-devel hiredis-devel rrdtool-devel lm_sensors-devel libatasmart-devel net-snmp-devel varnish-libs-devel libvirt-devel
-
 
 NORMALLY ONLY THIS
 yum install spectool
@@ -19,8 +26,8 @@ yum install perl-RRD
 yum install perl-Config
 yum install perl-rrdtool
 
-used command
-rpmbuild -ba --target=$(uname -m) rpmbuild/SPECS/collectd.spec
+3- build rpms
+rpmbuild -ba --target=$(uname -m) $DIR/rpmbuild/SPECS/collectd.spec
 
 HELP:
 https://github.com/simonmcc/rpmbuild-collectd/blob/master/build.sh
