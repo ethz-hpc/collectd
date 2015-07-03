@@ -516,8 +516,8 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
     plugin_dispatch_values (&vl);    
 
 	sstrncpy (vl.type, "jm_cputime", sizeof (vl.type));
-	vl.values[0].derive = ps->cpu_user_counter/sysconf(_SC_CLK_TCK);
-	vl.values[1].derive = ps->cpu_system_counter/sysconf(_SC_CLK_TCK);
+	vl.values[0].derive = ps->cpu_user_counter;
+	vl.values[1].derive = ps->cpu_system_counter;
 	vl.values_len = 2;
 	plugin_dispatch_values (&vl);
 
