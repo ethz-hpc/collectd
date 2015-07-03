@@ -292,7 +292,7 @@ static int interface_read (void)
 			continue;
 
         if (strcmp(device, "ib0") != 0 && strcmp(device, "ib1") != 0 ){
-    
+   
             incoming = atoll (fields[0]);
             outgoing = atoll (fields[8]);
             if_submit (device, "if_octets", incoming, outgoing);
@@ -313,9 +313,11 @@ static int interface_read (void)
      and not the default for other interfaces
     TODO: We do it only for port 1, need to do it for other ports
     */
-    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_data", "r")) != NULL)
-        if (fgets (buffer, 1024, fh) != NULL)
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_data", "r")) != NULL){
+        if (fgets (buffer, 1024, fh) != NULL){
                 incoming = atoll (buffer);
+	}	
+    }	
     fclose (fh);
 
     if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_data", "r")) != NULL)
@@ -329,7 +331,7 @@ static int interface_read (void)
                 incoming = atoll (buffer);
     fclose (fh);
 
-    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_errors", "r")) != NULL)
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_constraint_errors", "r")) != NULL)
         if (fgets (buffer, 1024, fh) != NULL)
                 outgoing = atoll (buffer);
     fclose (fh);
@@ -348,7 +350,8 @@ static int interface_read (void)
 
     if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/rate", "r")) != NULL)
         if (fgets (buffer, 3, fh) != NULL)
-                rate = atoll (buffer);        
+                rate = atoll (buffer);
+	INFO("--%s", buffer);
     fclose (fh);
     if_submit_rate ("ib0", "if_rate", rate);
 
