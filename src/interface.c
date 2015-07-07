@@ -351,7 +351,6 @@ static int interface_read (void)
     if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/rate", "r")) != NULL)
         if (fgets (buffer, 3, fh) != NULL)
                 rate = atoll (buffer);
-	INFO("--%s", buffer);
     fclose (fh);
     if_submit_rate ("ib0", "if_rate", rate);
 
