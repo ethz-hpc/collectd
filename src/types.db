@@ -120,8 +120,10 @@ js_npend               value:GAUGE:0:U
 js_nrun                        value:GAUGE:0:U
 js_ndep         value:GAUGE:0:U
 js_memory         value:GAUGE:0:U
+js_reasons         value:GAUGE:0:U
 js_runtime         value:GAUGE:0:U
 js_scratch       value:GAUGE:0:U
+js_subreasons     value:GAUGE:0:U
 latency			value:GAUGE:0:U
 links			value:GAUGE:0:U
 load			shortterm:GAUGE:0:5000, midterm:GAUGE:0:5000, longterm:GAUGE:0:5000
