@@ -357,43 +357,15 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
 
 		ps->vmem_minflt_counter += pse->vmem_minflt;
 		ps->vmem_majflt_counter += pse->vmem_majflt;
+    
+        pse->cpu_user_counter += entry->cpu_user_counter;
+        pse->cpu_user = entry->cpu_user_counter;
 
-		if ((entry->cpu_user_counter == 0)
-				&& (entry->cpu_system_counter == 0))
-		{
-			pse->cpu_user_counter += entry->cpu_user;
-			pse->cpu_user = entry->cpu_user;
+        pse->cpu_system_counter += entry->cpu_system_counter;
+        pse->cpu_system = entry->cpu_system_counter;
 
-			pse->cpu_system_counter += entry->cpu_system;
-			pse->cpu_system = entry->cpu_system;
-		}
-		else
-		{
-			if (entry->cpu_user_counter < pse->cpu_user_counter)
-			{
-				pse->cpu_user = entry->cpu_user_counter
-					+ (ULONG_MAX - pse->cpu_user_counter);
-			}
-			else
-			{
-				pse->cpu_user = entry->cpu_user_counter - pse->cpu_user_counter;
-			}
-			pse->cpu_user_counter = entry->cpu_user_counter;
-
-			if (entry->cpu_system_counter < pse->cpu_system_counter)
-			{
-				pse->cpu_system = entry->cpu_system_counter
-					+ (ULONG_MAX - pse->cpu_system_counter);
-			}
-			else
-			{
-				pse->cpu_system = entry->cpu_system_counter - pse->cpu_system_counter;
-			}
-			pse->cpu_system_counter = entry->cpu_system_counter;
-		}
-
-		ps->cpu_user_counter   += pse->cpu_user;
-		ps->cpu_system_counter += pse->cpu_system;
+        ps->cpu_user_counter   += pse->cpu_user;
+        ps->cpu_system_counter += pse->cpu_system;
 	}
 }/*end list_add */
 
@@ -419,6 +391,8 @@ static void jobmetrics_list_reset (void)
 		ps->stack_size  = 0;
         ps->voluntary_ctxt_switches    = 0;  
         ps->nonvoluntary_ctxt_switches = 0;
+        ps->cpu_user_counter = 0;
+        ps->cpu_system_counter = 0;
 		ps->io_rchar = -1;
 		ps->io_wchar = -1;
 		ps->io_syscr = -1;
