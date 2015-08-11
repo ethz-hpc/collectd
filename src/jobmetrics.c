@@ -557,7 +557,7 @@ static void jobmetrics_submit_proc_sublist (procstat_t *psj)
         vl.values_len = 2;
         sstrncpy (vl.host, hostname_g, sizeof (vl.host));
         sstrncpy (vl.plugin, "jobProcess", sizeof (vl.plugin));
-        sprintf (instance,"%s-%lu", psj->jobId, ps->id);
+        ssnprintf (instance,sizeof(instance),"%s-%lu", psj->jobId, ps->id);
         sstrncpy (vl.plugin_instance, instance, sizeof (vl.plugin_instance));
 
         sstrncpy (vl.type, "jm_vm", sizeof (vl.type));
@@ -1219,7 +1219,7 @@ static int jobmetrics_read (void)
             /*get jobid*/
 		    jobmetrics_read_jobid(ent->d_name, jobId);
 
-		    sprintf( filename , "%s/%s/%s", "/cgroup/cpuset/lsf/euler", ent->d_name,"tasks");	
+		    ssnprintf( filename , sizeof(filename), "%s/%s/%s", "/cgroup/cpuset/lsf/euler", ent->d_name,"tasks");	
 		    fp = fopen(filename,"r");
             if (fp == NULL ){
                      ERROR("jobmetrics plugin: could not open LSF fs");
@@ -1237,7 +1237,7 @@ static int jobmetrics_read (void)
 		        while(fgets(line, 80, fp) != NULL)
                 {
                     sscanf (line, "%d", &pid);
-           		    sprintf (filename, "/proc/%i/stat", pid);
+           		    ssnprintf (filename, sizeof(filename), "/proc/%i/stat", pid);
                     if ((fh = fopen (filename, "r")) == NULL)	
                         	return -1;
 
