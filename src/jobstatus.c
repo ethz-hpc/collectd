@@ -522,7 +522,10 @@ static int jobstatus_read (void)
             		jobdepReq.jobId = job->jobId;
             		jobdepReq.options = QUERY_DEPEND_UNSATISFIED;
             		struct jobDependInfo *jobDep = lsb_getjobdepinfo(&jobdepReq); 
-            		js_user->ndep = jobDep->numJobs;
+                    if ( jobDep != NULL )
+                        js_user->ndep = jobDep->numJobs;
+                    else
+                        js_user->ndep = 0;
         	}
         	else
             		js_user->ndep = 0;
