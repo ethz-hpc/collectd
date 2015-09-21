@@ -35,7 +35,7 @@ typedef struct lsf_conf_file
 
 } lsf_conf_file_t;
 
-static lsf_conf_file_t *lsf_conf = NULL;
+static lsf_conf_file_t lsf_conf;
 
 static const char *config_keys[] = 
 {
@@ -260,8 +260,6 @@ static void jobstatus_list_reset (void)
             free(ps);
         }
 
-	if (lsf_conf != NULL)
-		free(lsf_conf);	
 }
 
 /*
@@ -404,28 +402,21 @@ static jobresources_t* read_single_job_res (struct jobInfoEnt *job, jobresources
 
 static int add_lsf_conf(const char *key, const char *value)
 {
-	lsf_conf = (lsf_conf_file_t *) malloc (sizeof(lsf_conf_file_t));
-	
-	 memset (lsf_conf, 0, sizeof (lsf_conf_file_t));
-
  	if ((strcasecmp (key, "LSF_SERVERDIR") == 0))
     {
-	    sstrncpy(lsf_conf->serverdir,value, sizeof(lsf_conf->serverdir));
-
-	
-
-            if ( lsf_conf->serverdir == NULL)
+	    sstrncpy(lsf_conf.serverdir,value, sizeof(lsf_conf.serverdir));
+        if ( lsf_conf.serverdir == NULL)
                         return (-1);
 	}	
 	else if ((strcasecmp (key, "LSF_ENVDIR") == 0))
     {
-            sstrncpy(lsf_conf->envdir, value, sizeof(lsf_conf->envdir));
-            if ( lsf_conf->envdir == NULL)
+            sstrncpy(lsf_conf.envdir, value, sizeof(lsf_conf.envdir));
+            if ( lsf_conf.envdir == NULL)
                         return (-1);
         }
 
-	putenv(lsf_conf->envdir);
-	putenv(lsf_conf->serverdir);
+	putenv(lsf_conf.envdir);
+	putenv(lsf_conf.serverdir);
 	return 0;
 }
 
