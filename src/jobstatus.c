@@ -165,7 +165,7 @@ static void jobstatus_list_add_user (jobstatus_t *js)
 {
 	jobstatus_t *new;
 
-	new = (jobstatus_t *) malloc (sizeof(jobstatus_t));
+	new = js;
     if (new == NULL)
          return;
 
@@ -209,7 +209,7 @@ static void jobstatus_list_add_res (jobresources_t *js)
 {
     jobresources_t *new;
 
-    new = (jobresources_t *) malloc (sizeof(jobresources_t));
+    new = js;
     if (new == NULL)
          return;
 
