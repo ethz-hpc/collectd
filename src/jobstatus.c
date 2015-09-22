@@ -28,14 +28,21 @@
 #include <lsf.h>
 #include <lsbatch.h>
 
-typedef struct lsf_conf_file
+typedef struct lsf_conf_s
 {
   char serverdir[128];	
+
+} lsf_conf_server_t;
+
+static lsf_conf_server_t *lsf_server = NULL;
+
+typedef struct lsf_conf_e
+{
   char envdir[128];
 
-} lsf_conf_file_t;
+} lsf_conf_env_t;
 
-static lsf_conf_file_t lsf_conf;
+static lsf_conf_env_t *lsf_env = NULL;
 
 static const char *config_keys[] = 
 {
@@ -245,10 +252,13 @@ static void jobstatus_list_add_res (jobresources_t *js)
 
 static void jobstatus_list_reset (void)
 {
-    jobstatus_t *ps = list_head_g;
-    jobresources_t *ps_res = list_head_res_g;
+    jobstatus_t *ps;
+    jobresources_t *ps_res;
 
-    while( list_head_res_g!= NULL) {
+    ps = list_head_g;
+    ps_res = list_head_res_g;   
+
+   while( list_head_res_g!= NULL) {
             ps_res = list_head_res_g;
             list_head_res_g = list_head_res_g->next;
             free(ps_res);
@@ -259,7 +269,6 @@ static void jobstatus_list_reset (void)
             list_head_g = list_head_g->next;
             free(ps);
         }
-
 }
 
 /*
@@ -404,35 +413,43 @@ static int add_lsf_conf(const char *key, const char *value)
 {
  	if ((strcasecmp (key, "LSF_SERVERDIR") == 0))
     {
-	    sstrncpy(lsf_conf.serverdir,value, sizeof(lsf_conf.serverdir));
-        if ( lsf_conf.serverdir == NULL)
+        if( lsf_server == NULL){
+            lsf_server = (lsf_conf_server_t *) malloc (sizeof(lsf_conf_server_t));
+            memset (lsf_server, 0, sizeof (lsf_conf_server_t));
+        }
+	    sstrncpy(lsf_server->serverdir,value, sizeof(lsf_server->serverdir));
+            if ( lsf_server->serverdir == NULL)
                         return (-1);
+            else
+                putenv(lsf_server->serverdir);
 	}	
 	else if ((strcasecmp (key, "LSF_ENVDIR") == 0))
     {
-            sstrncpy(lsf_conf.envdir, value, sizeof(lsf_conf.envdir));
-            if ( lsf_conf.envdir == NULL)
-                        return (-1);
+        if( lsf_env == NULL){
+            lsf_env = (lsf_conf_env_t *) malloc (sizeof(lsf_conf_env_t));
+            memset (lsf_env, 0, sizeof (lsf_conf_env_t));
         }
+      
+        sstrncpy(lsf_env->envdir, value, sizeof(lsf_env->envdir));
+            if ( lsf_env->envdir == NULL)
+                        return (-1);
+            else
+                putenv(lsf_env->envdir);
+    }
 
-	putenv(lsf_conf.envdir);
-	putenv(lsf_conf.serverdir);
 	return 0;
 }
 
 static int jobstatus_config (const char *key, const char *value)
 {
-	
-	if ((strcasecmp (key, "LSF_SERVERDIR") == 0))
-	{
-		add_lsf_conf(key, value);
-	}
-	else if (strcasecmp (key, "LSF_ENVDIR") == 0)
+
+	if ((strcasecmp (key, "LSF_SERVERDIR") == 0) || (strcasecmp (key, "LSF_ENVDIR") == 0))
 	{
 		add_lsf_conf(key, value);
 	}
 	else
 		return (-1);
+
 
 	return (0);
 }
@@ -445,6 +462,12 @@ static int init(void)
 		ERROR("Jobstatus plugin: Initialization problems");
 		return (-1);
 	}
+
+    if (getenv("LSF_SERVERDIR") != NULL && getenv("LSF_ENVDIR") != NULL )
+        {
+            free(lsf_env);
+            free(lsf_server);
+        }
 
 	return 0;
 }
@@ -467,7 +490,6 @@ static int jobstatus_read (void)
 	struct jobInfoHead *jInfoH;
 	struct jobInfoEnt *job;	
 
-
     if (lsb_init(NULL) < 0)
 	{
 		ERROR ("jobstatus plugin: Could not start connection com LSF master");
@@ -477,7 +499,7 @@ static int jobstatus_read (void)
 
 	if(jInfoH == NULL){
 		lsb_closejobinfo();
-	        ERROR ("jobstatus plugin: Could not read job information");
+	        ERROR ("jobstatus plugin: Could not read jobs information");
 		return (-1);
  	}
 
