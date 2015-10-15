@@ -1200,20 +1200,21 @@ static int get_username(long pid, char *username)
     char path[40], line[100], *p, userid[32];
     FILE* statusf;
 
+//    INFO( "/proc/%ld/status", pid);
     ssnprintf(path, 40, "/proc/%ld/status", pid);
 
     statusf = fopen(path, "r");
     if(!statusf)
         return -1;
 
+    int index = 0;
     while(fgets(line, 100, statusf)) {
         if(strncmp(line, "Uid:", 4) != 0)
             continue;
         // Ignore "Uid:" and whitespace
         p = line + 4;
         while(isspace(*p)) ++p;
-
-        int index = 0;
+        index = 0;
         while(!isspace(*p)){
           userid[index] = *p;
           p++;
@@ -1222,9 +1223,12 @@ static int get_username(long pid, char *username)
         break;
     }
 
+    userid[index] = '\0';
     fclose(statusf);
 
-    FILE *fp;
+    sstrncpy (username, userid, sizeof(userid));
+
+/*    FILE *fp;
     char command[256];
 
     command[0]='\0';
@@ -1234,9 +1238,8 @@ static int get_username(long pid, char *username)
         return (-1);
     }
     if (fgets(username, sizeof(username)+1, fp) != NULL)
-    pclose(fp);            
+    pclose(fp);            */
 
-    INFO("%s", username);
 
     return 0;
 }
@@ -1329,6 +1332,7 @@ static int jobmetrics_read (void)
                                 ERROR ("jobmetrics_read_username failed: %i", status);
                                 continue;
                             }
+                            INFO("%s",username);
                             sstrncpy (ps.username, username, sizeof(ps.username));
                             sstrncpy (ps.jobId, jobId, sizeof(ps.jobId));
                             sstrncpy (ps.name, name, sizeof(ps.name));
