@@ -25,6 +25,7 @@
 #include "plugin.h"
 #include "configfile.h"
 
+#include <ctype.h>
 
 #if KERNEL_LINUX
 #  if HAVE_LINUX_CONFIG_H
@@ -91,6 +92,7 @@ typedef struct procstat
 {
 	char          name[PROCSTAT_NAME_LEN];
     char          jobId[PROCSTAT_NAME_LEN];
+    char          username[256];
                 
 #if HAVE_REGEX_H
 	regex_t *re;
@@ -196,7 +198,7 @@ static void jobmetrics_list_remove(const char *jobId)
 
 
 /* add process entry to 'instances' of process 'name' and job jobId (or refresh it)*/
-static void jobmetrics_list_add (const char *jobId, const char *name, const char *cmdline, procstat_entry_t *entry)
+static void jobmetrics_list_add (const char *jobId, const char *name, const char *username, const char *cmdline, procstat_entry_t *entry)
 {
 	procstat_t *ps;
     procstat_t *new;
@@ -221,6 +223,7 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
         memset (new, 0, sizeof (procstat_t));
         sstrncpy (new->name, name, sizeof (new->name));
         sstrncpy (new->jobId, jobId, sizeof (new->jobId));
+        sstrncpy (new->username, username, sizeof (new->username));
         list_head_g = new;
     }
     else
@@ -249,6 +252,7 @@ static void jobmetrics_list_add (const char *jobId, const char *name, const char
             }
             memset (new, 0, sizeof (procstat_t));
             sstrncpy (new->name, name, sizeof (new->name));
+            sstrncpy (new->username, username, sizeof (new->username));
             sstrncpy (new->jobId, jobId, sizeof (new->jobId));
             for (ptr = list_head_g; ptr != NULL; ptr = ptr->next)
                 if (ptr->next == NULL)
@@ -455,53 +459,63 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
 	sstrncpy (vl.plugin_instance, ps->jobId, sizeof (vl.plugin_instance));
 
 	sstrncpy (vl.type, "jm_vm", sizeof (vl.type));
+    sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
 	vl.values[0].gauge = ps->vmem_size;
 	vl.values_len = 1;
 	plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "jm_rss", sizeof (vl.type));
+    sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
 	vl.values[0].gauge = ps->vmem_rss;
 	vl.values_len = 1;
 	plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "jm_data", sizeof (vl.type));
+    sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
 	vl.values[0].gauge = ps->vmem_data;
 	vl.values_len = 1;
 	plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "jm_code", sizeof (vl.type));
+    sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
 	vl.values[0].gauge = ps->vmem_code;
 	vl.values_len = 1;
 	plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "jm_stacksize", sizeof (vl.type));
+    sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
 	vl.values[0].gauge = ps->stack_size;
 	vl.values_len = 1;
 	plugin_dispatch_values (&vl);
     
     sstrncpy (vl.type, "jm_ctxt", sizeof (vl.type));
+    sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
     vl.values[0].gauge = ps->voluntary_ctxt_switches;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);    
 
     sstrncpy (vl.type, "jm_nonctxt", sizeof (vl.type));
+    sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
     vl.values[0].gauge = ps->nonvoluntary_ctxt_switches;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);    
 
 	sstrncpy (vl.type, "jm_cputime", sizeof (vl.type));
+    sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
 	vl.values[0].derive = ps->cpu_user_counter;
 	vl.values[1].derive = ps->cpu_system_counter;
 	vl.values_len = 2;
 	plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "jm_count", sizeof (vl.type));
+    sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
 	vl.values[0].gauge = ps->num_proc;
 	vl.values[1].gauge = ps->num_lwp;
 	vl.values_len = 2;
 	plugin_dispatch_values (&vl);
 
 	sstrncpy (vl.type, "jm_pagefaults", sizeof (vl.type));
+    sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
 	vl.values[0].derive = ps->vmem_minflt_counter;
 	vl.values[1].derive = ps->vmem_majflt_counter;
 	vl.values_len = 2;
@@ -510,6 +524,7 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
 	if ( (ps->io_rchar != -1) && (ps->io_wchar != -1) )
 	{
 		sstrncpy (vl.type, "jm_disk_octets", sizeof (vl.type));
+        sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
 		vl.values[0].derive = ps->io_rchar;
 		vl.values[1].derive = ps->io_wchar;
 		vl.values_len = 2;
@@ -519,6 +534,7 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
 	if ( (ps->io_syscr != -1) && (ps->io_syscw != -1) )
 	{
 		sstrncpy (vl.type, "jm_disk_ops", sizeof (vl.type));
+        sstrncpy (vl.type_instance, ps->username, sizeof (vl.type_instance));
 		vl.values[0].derive = ps->io_syscr;
 		vl.values[1].derive = ps->io_syscw;
 		vl.values_len = 2;
@@ -1179,6 +1195,52 @@ static int isthread(int pid)
 
 }
 
+static int get_username(long pid, char *username)
+{
+    char path[40], line[100], *p, userid[32];
+    FILE* statusf;
+
+    ssnprintf(path, 40, "/proc/%ld/status", pid);
+
+    statusf = fopen(path, "r");
+    if(!statusf)
+        return -1;
+
+    while(fgets(line, 100, statusf)) {
+        if(strncmp(line, "Uid:", 4) != 0)
+            continue;
+        // Ignore "Uid:" and whitespace
+        p = line + 4;
+        while(isspace(*p)) ++p;
+
+        int index = 0;
+        while(!isspace(*p)){
+          userid[index] = *p;
+          p++;
+          index++;
+        }
+        break;
+    }
+
+    fclose(statusf);
+
+    FILE *fp;
+    char command[256];
+
+    command[0]='\0';
+    ssnprintf(command,sizeof(command),"getent passwd %s | awk -F: '{print $1}'", userid);
+    fp = popen(command, "r");
+    if (fp == NULL) {
+        return (-1);
+    }
+    if (fgets(username, sizeof(username)+1, fp) != NULL)
+    pclose(fp);            
+
+    INFO("%s", username);
+
+    return 0;
+}
+
 /* do actual readings from kernel */
 static int jobmetrics_read (void)
 {
@@ -1196,6 +1258,7 @@ static int jobmetrics_read (void)
 	char       state;
 
     char        jobId[PROCSTAT_NAME_LEN], name[PROCSTAT_NAME_LEN];
+    char        username[256];
 	char        filename[100], line[80];
 	FILE        *fp,*fh;
 	procstat_t  *ps_ptr;
@@ -1260,7 +1323,13 @@ static int jobmetrics_read (void)
                                 ERROR ("jobmetrics_read_process failed: %i", status);
                                 continue;
                             }
-        
+                            status = get_username(pid, username);
+                            if (status != 0 )
+                            {
+                                ERROR ("jobmetrics_read_username failed: %i", status);
+                                continue;
+                            }
+                            sstrncpy (ps.username, username, sizeof(ps.username));
                             sstrncpy (ps.jobId, jobId, sizeof(ps.jobId));
                             sstrncpy (ps.name, name, sizeof(ps.name));
 
@@ -1293,7 +1362,7 @@ static int jobmetrics_read (void)
                             pse.io_syscr = ps.io_syscr;
                             pse.io_syscw = ps.io_syscw;
 
-                            jobmetrics_list_add (ps.jobId, ps.name, 
+                            jobmetrics_list_add (ps.jobId, ps.name, ps.username, 
                                 jobmetrics_get_cmdline (pid, ps.name, 
                                 cmdline, sizeof (cmdline)),&pse);
 			            } /*end if(!isthread)*/
