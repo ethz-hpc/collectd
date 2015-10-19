@@ -68,6 +68,7 @@ typedef struct  jobstatus
 typedef struct  jobresources
 {
     char jobId[JOB_NAME_LEN];
+    char username[JOB_NAME_LEN];
     int reasons;
     int subreasons; 
     unsigned long ncores;
@@ -123,6 +124,7 @@ static void jobstatus_submit_resources (jobresources_t *js)
     value_t values[2];
     value_list_t vl = VALUE_LIST_INIT;
 
+
     vl.values = values;
     vl.values_len = 2;
     sstrncpy (vl.host, hostname_g, sizeof (vl.host));
@@ -130,31 +132,37 @@ static void jobstatus_submit_resources (jobresources_t *js)
     sstrncpy (vl.plugin_instance, js->jobId, sizeof (vl.plugin_instance));
 
     sstrncpy (vl.type, "js_ncores", sizeof (vl.type));
+    sstrncpy (vl.type_instance, js->username, sizeof (vl.type_instance));
     vl.values[0].gauge = js->ncores;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
     sstrncpy (vl.type, "js_runtime", sizeof (vl.type));
+    sstrncpy (vl.type_instance, js->username, sizeof (vl.type_instance));
     vl.values[0].gauge = js->runtime;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
     sstrncpy (vl.type, "js_memory", sizeof (vl.type));
+    sstrncpy (vl.type_instance, js->username, sizeof (vl.type_instance));
     vl.values[0].gauge = js->memory;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
     sstrncpy (vl.type, "js_scratch", sizeof (vl.type));
+    sstrncpy (vl.type_instance, js->username, sizeof (vl.type_instance));
     vl.values[0].gauge = js->scratch;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
     sstrncpy (vl.type, "js_reasons", sizeof (vl.type));
+    sstrncpy (vl.type_instance, js->username, sizeof (vl.type_instance));
     vl.values[0].gauge = js->reasons;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
 
     sstrncpy (vl.type, "js_subreasons", sizeof (vl.type));
+    sstrncpy (vl.type_instance, js->username, sizeof (vl.type_instance));
     vl.values[0].gauge = js->subreasons;
     vl.values_len = 1;
     plugin_dispatch_values (&vl);
@@ -168,8 +176,6 @@ static void jobstatus_list_add_user (jobstatus_t *js)
 	new = js;
     if (new == NULL)
          return;
-
-	memset (new, 0, sizeof (jobstatus_t));
 
     sstrncpy(new->name, js->name, sizeof(new->name));
     new->nrun = js->nrun;
@@ -213,9 +219,8 @@ static void jobstatus_list_add_res (jobresources_t *js)
     if (new == NULL)
          return;
 
-    memset (new, 0, sizeof (jobresources_t));
-
-    sstrncpy(new->jobId, js->jobId, sizeof(new->jobId));
+    sstrncpy(new->jobId, js->jobId, sizeof(js->jobId));
+    sstrncpy(new->username, js->username, sizeof(js->username));
     new->ncores = js->ncores;
     new->runtime = js->runtime;
     new->memory = js->memory;
@@ -240,6 +245,7 @@ static void jobstatus_list_add_res (jobresources_t *js)
                 last_ps->next = new;
             }
             else{
+		sstrncpy(ps->username, new->username, sizeof(new->username));
                 ps->ncores = new->ncores;
                 ps->memory = new->memory;
                 ps->scratch = new->scratch;
@@ -379,8 +385,10 @@ static jobresources_t* read_single_job_res (struct jobInfoEnt *job, jobresources
 		    ssnprintf (jobId, sizeof (jobId), "%d.%d", LSB_ARRAY_JOBID(job->jobId),LSB_ARRAY_IDX(job->jobId));
 	    } 
 	    else
+	
     		ssnprintf (jobId, sizeof (jobId), "%lli", job->jobId);
     	sstrncpy(js->jobId, jobId, sizeof(js->jobId));
+        sstrncpy(js->username, job->user, sizeof(js->username));
         js->ncores = job->submit.numProcessors;
         js->runtime = job->jRusageUpdateTime - job->startTime;
         js->memory = get_rr_mem(job->submit.resReq);
@@ -396,6 +404,7 @@ static jobresources_t* read_single_job_res (struct jobInfoEnt *job, jobresources
         else
             ssnprintf (jobId, sizeof (jobId), "%lli", job->jobId);
         sstrncpy(js->jobId, jobId, sizeof(js->jobId));
+        sstrncpy(js->username, job->user, sizeof(js->username));
         js->ncores = job->submit.numProcessors;
         js->runtime = 0;
         js->memory = get_rr_mem(job->submit.resReq);
@@ -550,6 +559,7 @@ static int jobstatus_read (void)
 		if ( read_single_job_res(job, js_res) == NULL )
                 {
                     memset(js_res->jobId,' ',sizeof(js_res->jobId));
+                    memset(js_res->username,' ',sizeof(js_res->username));
                     js_res->ncores = 0;
                 	js_res->runtime = 0;
                 	js_res->memory = 0;
@@ -557,7 +567,7 @@ static int jobstatus_read (void)
                     js_res->reasons = 0;
                     js_res->subreasons = 0;
                 }
-		else{	
+		else{
 			jobstatus_list_add_res(js_res);
 		}
 
