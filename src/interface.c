@@ -316,44 +316,55 @@ static int interface_read (void)
     if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_data", "r")) != NULL){
         if (fgets (buffer, 1024, fh) != NULL){
                 incoming = atoll (buffer);
-	}	
+	    }	
+        fclose (fh);
     }	
-    fclose (fh);
 
-    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_data", "r")) != NULL)
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_data", "r")) != NULL){
         if (fgets (buffer, 1024, fh) != NULL)
                 outgoing = atoll (buffer);
-    fclose (fh);
-    if_submit ("ib0", "if_octets", incoming, outgoing);
+        fclose (fh);
+    }
+
+    if (incoming != 0 && outgoing != 0)
+        if_submit ("ib0", "if_octets", incoming, outgoing);
  
-    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_errors", "r")) != NULL)
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_errors", "r")) != NULL){
         if (fgets (buffer, 1024, fh) != NULL)
                 incoming = atoll (buffer);
-    fclose (fh);
+        fclose (fh);
+    }
 
-    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_constraint_errors", "r")) != NULL)
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_constraint_errors", "r")) != NULL){
         if (fgets (buffer, 1024, fh) != NULL)
                 outgoing = atoll (buffer);
-    fclose (fh);
-    if_submit ("ib0", "if_errors", incoming, outgoing);
+        fclose (fh);
+    }
+    
+    if (incoming != 0 && outgoing != 0)
+        if_submit ("ib0", "if_errors", incoming, outgoing);
 
-    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_packets", "r")) != NULL)
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_packets", "r")) != NULL){
         if (fgets (buffer, 1024, fh) != NULL)
                 incoming = atoll (buffer);
-    fclose (fh);
+        fclose (fh);
+    }
 
-    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_packets", "r")) != NULL)
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/counters/port_xmit_packets", "r")) != NULL){
         if (fgets (buffer, 1024, fh) != NULL)
                 outgoing = atoll (buffer);
-    fclose (fh);
-    if_submit ("ib0", "if_packets", incoming, outgoing);
+        fclose (fh);
+    }
 
-    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/rate", "r")) != NULL)
+    if (incoming != 0 && outgoing != 0)
+        if_submit ("ib0", "if_packets", incoming, outgoing);
+
+    if ((fh = fopen ("/sys/class/infiniband/mlx4_0/ports/1/rate", "r")) != NULL){
         if (fgets (buffer, 3, fh) != NULL)
                 rate = atoll (buffer);
-    fclose (fh);
-    if_submit_rate ("ib0", "if_rate", rate);
-
+        fclose (fh);
+        if_submit_rate ("ib0", "if_rate", rate);
+    }
 
 /* #endif KERNEL_LINUX */
 
