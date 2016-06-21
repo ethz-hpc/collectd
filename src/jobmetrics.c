@@ -1112,6 +1112,8 @@ static void jobmetrics_read_name(char *fl_name, char *name)
 {
     int ch, i;
 
+    ch = i = 0;
+
     for (ch = 0; fl_name[ch] != '\0'; ch++)
     {
        i = 0;
@@ -1133,6 +1135,8 @@ static void jobmetrics_read_name(char *fl_name, char *name)
 static void jobmetrics_read_jobid(char *dir_name, char *jobId)
 {
     int ch, i;
+
+    ch = i = 0;
 
     for ( ch = 0; dir_name[ch] != '\0'; ch++)
     {
