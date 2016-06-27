@@ -186,7 +186,7 @@ static void jobmetrics_list_remove(const char *jobId)
         if (found == 1){
             if (ps_behind == ps)
                 ps_behind = NULL;
-            else
+            else if (ps_behind != NULL)
                 ps_behind->next = ps_ahead;
             if (list_head_g == ps)
                 list_head_g = ps_ahead;
@@ -1204,7 +1204,6 @@ static int get_username(long pid, char *username)
     char path[40], line[100], *p, userid[32];
     FILE* statusf;
 
-//    INFO( "/proc/%ld/status", pid);
     ssnprintf(path, 40, "/proc/%ld/status", pid);
 
     statusf = fopen(path, "r");
@@ -1231,20 +1230,6 @@ static int get_username(long pid, char *username)
     fclose(statusf);
 
     sstrncpy (username, userid, sizeof(userid));
-
-/*    FILE *fp;
-    char command[256];
-
-    command[0]='\0';
-    ssnprintf(command,sizeof(command),"getent passwd %s | awk -F: '{print $1}'", userid);
-    fp = popen(command, "r");
-    if (fp == NULL) {
-        return (-1);
-    }
-    if (fgets(username, sizeof(username)+1, fp) != NULL)
-    pclose(fp);            */
-
-
     return 0;
 }
 
@@ -1272,6 +1257,7 @@ static int jobmetrics_read (void)
 	
 	jobmetrics_list_reset ();
 
+
     if ((proc = opendir ("/cgroup/cpuset/lsf/euler")) == NULL)
 	{
 		char errbuf[1024];
@@ -1289,6 +1275,7 @@ static int jobmetrics_read (void)
             /*get jobid*/
 		    jobmetrics_read_jobid(ent->d_name, jobId);
 
+
 		    ssnprintf( filename , sizeof(filename), "%s/%s/%s", "/cgroup/cpuset/lsf/euler", ent->d_name,"tasks");	
 		    fp = fopen(filename,"r");
             if (fp == NULL ){
@@ -1303,6 +1290,7 @@ static int jobmetrics_read (void)
             }
             else
             {
+                
                 /*read PIDs from a job, use LSF cgroups for this*/
 		        while(fgets(line, 80, fp) != NULL)
                 {
@@ -1336,7 +1324,6 @@ static int jobmetrics_read (void)
                                 ERROR ("jobmetrics_read_username failed: %i", status);
                                 continue;
                             }
-                            INFO("%s",username);
                             sstrncpy (ps.username, username, sizeof(ps.username));
                             sstrncpy (ps.jobId, jobId, sizeof(ps.jobId));
                             sstrncpy (ps.name, name, sizeof(ps.name));
