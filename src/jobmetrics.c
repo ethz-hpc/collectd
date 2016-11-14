@@ -558,110 +558,6 @@ static void jobmetrics_submit_proc_list (procstat_t *ps)
 
 } /* void jobmetrics_submit_proc_list */
 
-/* submit info about specific process (e.g.: memory taken, cpu usage, etc..) instances*/
-static void jobmetrics_submit_proc_sublist (procstat_t *psj)
-{
-
-    value_t values[2];
-    value_list_t vl = VALUE_LIST_INIT;
-    procstat_entry_t *ps;
-    char instance[1024];
-
-    for ( ps = psj->instances; ps != NULL; ps = ps->next)
-    {
-        vl.values = values;
-        vl.values_len = 2;
-        sstrncpy (vl.host, hostname_g, sizeof (vl.host));
-        sstrncpy (vl.plugin, "jobProcess", sizeof (vl.plugin));
-        ssnprintf (instance,sizeof(instance),"%s-%lu", psj->jobId, ps->id);
-        sstrncpy (vl.plugin_instance, instance, sizeof (vl.plugin_instance));
-
-        sstrncpy (vl.type, "jm_vm", sizeof (vl.type));
-        vl.values[0].gauge = ps->vmem_size;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
-
-        sstrncpy (vl.type, "jm_rss", sizeof (vl.type));
-        vl.values[0].gauge = ps->vmem_rss;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
-
-        sstrncpy (vl.type, "jm_data", sizeof (vl.type));
-        vl.values[0].gauge = ps->vmem_data;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
-
-        sstrncpy (vl.type, "jm_code", sizeof (vl.type));
-        vl.values[0].gauge = ps->vmem_code;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
-
-        sstrncpy (vl.type, "jm_stacksize", sizeof (vl.type));
-        vl.values[0].gauge = ps->stack_size;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
-
-        sstrncpy (vl.type, "jm_ctxt", sizeof (vl.type));
-        vl.values[0].gauge = ps->voluntary_ctxt_switches;
-        vl.values_len = 1;
-        plugin_dispatch_values (&vl);
-
-        sstrncpy (vl.type, "jm_nonctxt", sizeof (vl.type));
-        vl.values[0].gauge = ps->nonvoluntary_ctxt_switches;
-        vl.values_len = 1; 
-        plugin_dispatch_values (&vl);  
-
-        sstrncpy (vl.type, "jm_cputime", sizeof (vl.type));
-        vl.values[0].derive = ps->cpu_user_counter;
-        vl.values[1].derive = ps->cpu_system_counter;
-        vl.values_len = 2;
-        plugin_dispatch_values (&vl);
-
-        sstrncpy (vl.type, "jm_count", sizeof (vl.type));
-        vl.values[0].gauge = ps->num_proc;
-        vl.values[1].gauge = ps->num_lwp;
-        vl.values_len = 2;
-        plugin_dispatch_values (&vl);
-
-        sstrncpy (vl.type, "jm_pagefaults", sizeof (vl.type));
-        vl.values[0].derive = ps->vmem_minflt_counter;
-        vl.values[1].derive = ps->vmem_majflt_counter;
-        vl.values_len = 2;
-        plugin_dispatch_values (&vl);
-
-        if ( (ps->io_rchar != -1) && (ps->io_wchar != -1) )
-        {
-            sstrncpy (vl.type, "jm_disk_octets", sizeof (vl.type));
-            vl.values[0].derive = ps->io_rchar;
-            vl.values[1].derive = ps->io_wchar;
-            vl.values_len = 2;
-            plugin_dispatch_values (&vl);
-        }
-        if ( (ps->io_syscr != -1) && (ps->io_syscw != -1) )
-        {
-            sstrncpy (vl.type, "jm_disk_ops", sizeof (vl.type));
-            vl.values[0].derive = ps->io_syscr;
-            vl.values[1].derive = ps->io_syscw;
-            vl.values_len = 2;
-            plugin_dispatch_values (&vl);
-        }
-
-        DEBUG ("list_submit jobId = %s; name = %s; num_proc = %lu; num_lwp = %lu; "
-                "vmem_size = %lu; vmem_rss = %lu; vmem_data = %lu; "
-                "vmem_code = %lu; "
-                "vmem_minflt_counter = %"PRIi64"; vmem_majflt_counter = %"PRIi64"; "
-                "cpu_user_counter = %"PRIi64"; cpu_system_counter = %"PRIi64"; "
-                "io_rchar = %"PRIi64"; io_wchar = %"PRIi64"; "
-                "io_syscr = %"PRIi64"; io_syscw = %"PRIi64";",
-                psj->jobId, psj->name, ps->num_proc, ps->num_lwp,
-                ps->vmem_size, ps->vmem_rss,
-                ps->vmem_data, ps->vmem_code,
-                ps->vmem_minflt_counter, ps->vmem_majflt_counter,
-                ps->cpu_user_counter, ps->cpu_system_counter,
-                ps->io_rchar, ps->io_wchar, ps->io_syscr, ps->io_syscw);
-    }
-}
-
 /* ------- additional functions for KERNEL_LINUX ------- 
             Those are the same functions of processes.c
             except jobmetrics_read_ctxt, has been added
@@ -1374,7 +1270,7 @@ static int jobmetrics_read (void)
 	for (ps_ptr = list_head_g; ps_ptr != NULL; ps_ptr = ps_ptr->next)
 	{
 		jobmetrics_submit_proc_list (ps_ptr);
-        jobmetrics_submit_proc_sublist (ps_ptr);
+        //jobmetrics_submit_proc_sublist (ps_ptr);
 	}
 
 /* #endif KERNEL_LINUX */
